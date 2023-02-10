@@ -6,7 +6,7 @@ on:
       - 'main'
       
 env:
-  IMAGE_NAME: kubernetes-plugin
+  IMAGE_NAME: kubernetes-mps-plugin
 
 jobs:
   build-with-paketo-push-2-dockerhub:

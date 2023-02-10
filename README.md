@@ -1,4 +1,4 @@
-# kubernetes-plugin
+# kubernetes-mps-plugin
 
 ## Build
 ```shell

@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>ust.tad</groupId>
-	<artifactId>kubernetes-plugin</artifactId>
+	<artifactId>kubernetes-mps-plugin</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>kubernetes-plugin</name>
-	<description>kubernetes plugin for technology-agnostic deployments</description>
+	<name>kubernetes-mps-plugin</name>
+	<description>kubernetes plugin using JetBrains MPS for technology-agnostic deployments</description>
 	<properties>
 		<java.version>11</java.version>
 	</properties>
