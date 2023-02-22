@@ -1,65 +1,73 @@
 package ust.tad.kubernetesmpsplugin.analysis;
 
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
-import ust.tad.kubernetesmpsplugin.models.tadm.Component;
-import ust.tad.kubernetesmpsplugin.models.tadm.ComponentType;
-import ust.tad.kubernetesmpsplugin.models.tadm.Confidence;
-import ust.tad.kubernetesmpsplugin.models.tadm.InvalidRelationException;
-import ust.tad.kubernetesmpsplugin.models.tadm.Property;
-import ust.tad.kubernetesmpsplugin.models.tadm.Relation;
-import ust.tad.kubernetesmpsplugin.models.tadm.RelationType;
-import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.Selector;
+import ust.tad.kubernetesmpsplugin.models.tadm.*;
 
 @Service
 public class RelationFinderService {
 
-    private String[] PROPERTY_KEYWORDS = {"connect","host","server","url","uri"};
+    private final String[] PROPERTY_KEYWORDS = {"connect","host","server","url","uri"};
     
     private RelationType connectsToRelationType = new RelationType();
     private RelationType hostedOnRelationType = new RelationType();
 
     /**
      * Creates EDMM relations for the newly created components.
-     * 
-     * @param tadm
-     * @param newComponents
-     * @param matchingServicesAndDeployments
-     * @return
-     * @throws InvalidRelationException
-     * @throws URISyntaxException
+     *
+     * @param tadm the current technology-agnostic deployment model.
+     * @param kubernetesDeploymentModel the Kubernetes deployment model in which to search for relations.
+     * @param newComponents the newly created EDMM components from the transformation.
+     * @return the newly created relations.
      */
-    public TechnologyAgnosticDeploymentModel findAndCreateRelations(
-        TechnologyAgnosticDeploymentModel tadm, 
-        List<Component> newComponents, 
-        Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments) 
-        throws InvalidRelationException, URISyntaxException {
+    public Set<Relation> createRelations(
+        TechnologyAgnosticDeploymentModel tadm,
+        KubernetesDeploymentModel kubernetesDeploymentModel,
+        List<Component> newComponents) {
             setRelationTypes(tadm.getRelationTypes());
             Set<Relation> newRelations = new HashSet<>();
+            Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments =
+                    findMatchingServicesAndDeployments(kubernetesDeploymentModel.getServices(),
+                            kubernetesDeploymentModel.getDeployments());
             for (Component newComponent : newComponents) {
                 newRelations.addAll(findRelationsInProperties(tadm, newComponent, matchingServicesAndDeployments));
                 Optional<Relation> relationToContainerRuntime = findRelationToContainerRuntime(tadm, newComponent);
-                if (relationToContainerRuntime.isPresent()) {
-                    newRelations.add(relationToContainerRuntime.get());
+                relationToContainerRuntime.ifPresent(newRelations::add);
+            }
+            return newRelations;
+    }
+
+    /**
+     * Iterates over all Kubernetes deployments and services and matches deployments where a selector of the service
+     * matches the label of a deployment.
+     *
+     * @param services the Kubernetes services.
+     * @param deployments the Kubernetes deployments.
+     * @return a Map with pairs of matching Kubernetes deployments and services.
+     */
+    private Map<KubernetesService, KubernetesDeployment> findMatchingServicesAndDeployments(
+            Set<KubernetesService> services,
+            Set<KubernetesDeployment> deployments) {
+        Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments = new HashMap<>();
+        for (KubernetesDeployment deployment : deployments) {
+            for (KubernetesService service : services) {
+                for (Selector selector : service.getSelectors()) {
+                    if (deployment.getLabels().stream().anyMatch(label ->
+                            label.getKey().equals(selector.getKey()) &&
+                                    label.getValue().equals(selector.getValue()))) {
+                        matchingServicesAndDeployments.put(service, deployment);
+                    }
                 }
-            }               
-            //newRelations.addAll(findRelationInPropertiesWithComponentNames(tadm, newComponents, matchingServicesAndDeployments));
-            tadm.addRelations(newRelations);
-            return tadm;
+            }
+        }
+        return matchingServicesAndDeployments;
     }
 
     /**
@@ -69,9 +77,8 @@ public class RelationFinderService {
      * @param tadm
      * @param newComponent
      * @return
-     * @throws InvalidRelationException
      */
-    private Optional<Relation> findRelationToContainerRuntime(TechnologyAgnosticDeploymentModel tadm, Component newComponent) throws InvalidRelationException {
+    private Optional<Relation> findRelationToContainerRuntime(TechnologyAgnosticDeploymentModel tadm, Component newComponent) {
         Optional<ComponentType> containerRuntimeComponentTypeOpt = tadm.getComponentTypes().stream().filter(componentType -> componentType.getName().equals("container_runtime")).findFirst();
         if (containerRuntimeComponentTypeOpt.isPresent()) {
             Optional<Component> containerRuntimeComponentOpt = tadm.getComponents().stream().filter(component -> component.getType().equals(containerRuntimeComponentTypeOpt.get())).findFirst();
@@ -79,8 +86,12 @@ public class RelationFinderService {
                 Relation relation = new Relation();
                 relation.setType(this.hostedOnRelationType);
                 relation.setName(newComponent.getName()+"_"+this.hostedOnRelationType.getName()+"_"+containerRuntimeComponentOpt.get().getName());
-                relation.setSource(newComponent);
-                relation.setTarget(containerRuntimeComponentOpt.get());
+                try {
+                    relation.setSource(newComponent);
+                    relation.setTarget(containerRuntimeComponentOpt.get());
+                } catch (InvalidRelationException e) {
+                    return Optional.empty();
+                }
                 relation.setConfidence(Confidence.SUSPECTED);
                 return Optional.of(relation);
             }
@@ -98,26 +109,21 @@ public class RelationFinderService {
      * @param sourceComponent
      * @param matchingServicesAndDeployments
      * @return the List of new relations that were created.
-     * @throws InvalidRelationException
-     * @throws URISyntaxException
      */
     private List<Relation> findRelationsInProperties(
         TechnologyAgnosticDeploymentModel tadm, 
         Component sourceComponent, 
-        Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments) 
-        throws InvalidRelationException, URISyntaxException {
+        Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments) {
             List<Relation> newRelations = new ArrayList<>();
             List<String> targetComponentNames = tadm.getComponents().stream()
-            .map(component -> component.getName())
+            .map(ModelEntity::getName)
             .collect(Collectors.toList());
             for (Property property : sourceComponent.getProperties()) {
-                if (Arrays.stream(PROPERTY_KEYWORDS).anyMatch(property.getKey().toString().toLowerCase()::contains)) {
+                if (Arrays.stream(PROPERTY_KEYWORDS).anyMatch(property.getKey().toLowerCase()::contains)) {
                     Optional<String> matchedComponentName = matchPropertyWithComponentNames(property, targetComponentNames);            
                     if (matchedComponentName.isPresent() && !matchedComponentName.get().equals(sourceComponent.getName())) {
                         Optional<Relation> relationOpt = createRelationToComponent(matchedComponentName.get(), sourceComponent, tadm.getComponents(), matchingServicesAndDeployments);
-                        if (relationOpt.isPresent()) {
-                            newRelations.add(relationOpt.get());
-                        }
+                        relationOpt.ifPresent(newRelations::add);
                     }
                 }
             }
@@ -137,11 +143,11 @@ public class RelationFinderService {
     private Optional<String> matchPropertyWithComponentNames(Property property, List<String> componentNames) {
         List<String> matchedComponentNames = componentNames.stream()
         .filter(targetComponentName -> property.getValue().toString().contains(targetComponentName))
-        .collect(Collectors.toList());  
+        .collect(Collectors.toList());
         if (matchedComponentNames.size() == 1) {
             return Optional.of(matchedComponentNames.get(0));
         } else if (matchedComponentNames.size() > 1) {
-            return Optional.of(matchedComponentNames.stream().max(Comparator.comparingInt(String::length)).get());
+            return matchedComponentNames.stream().max(Comparator.comparingInt(String::length));
         } else {
             return Optional.empty();
         }
@@ -151,42 +157,40 @@ public class RelationFinderService {
      * Create an EDMM relation between a source and a target component of type "connects to".
      * For that, finds the target component by the given targetComponentName.
      * If it cannot find the component, it creates no relation.
-     * 
-     * @param connectionURI
+     *
      * @param sourceComponent
      * @param components
      * @param matchingServicesAndDeployments
      * @return
-     * @throws MalformedURLException
-     * @throws InvalidRelationException
-     * @throws URISyntaxException
      */
     private Optional<Relation> createRelationToComponent(
-        String targetComponentName, 
-        Component sourceComponent, 
-        List<Component> components,
-        Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments) 
-        throws InvalidRelationException {
-            Relation relation = new Relation();
-            relation.setType(this.connectsToRelationType);
+            String targetComponentName,
+            Component sourceComponent,
+            List<Component> components,
+            Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments) {
+        Relation relation = new Relation();
+        relation.setType(this.connectsToRelationType);
+        relation.setConfidence(Confidence.CONFIRMED);
+        try {
             relation.setSource(sourceComponent);
-            relation.setConfidence(Confidence.CONFIRMED);
-
             Optional<Component> targetComponentOpt = getComponentByName(targetComponentName, components);
             if (targetComponentOpt.isPresent()) {
                 relation.setTarget(targetComponentOpt.get());
-                relation.setName(sourceComponent.getName()+"_"+this.connectsToRelationType.getName()+"_"+targetComponentOpt.get().getName());
+                relation.setName(sourceComponent.getName() + "_" + this.connectsToRelationType.getName() + "_" + targetComponentOpt.get().getName());
                 return Optional.of(relation);
             }
             targetComponentOpt = getComponentByMatchingService(targetComponentName, matchingServicesAndDeployments, components);
             if (targetComponentOpt.isPresent()) {
                 relation.setTarget(targetComponentOpt.get());
-                relation.setName(sourceComponent.getName()+"_"+this.connectsToRelationType.getName()+"_"+targetComponentOpt.get().getName());
+                relation.setName(sourceComponent.getName() + "_" + this.connectsToRelationType.getName() + "_" + targetComponentOpt.get().getName());
                 return Optional.of(relation);
             }
-
+        } catch (InvalidRelationException e) {
             return Optional.empty();
+        }
+        return Optional.empty();
     }
+
 
     /**
      * Get a component by its name from a given List of components.
@@ -228,13 +232,9 @@ public class RelationFinderService {
      */
     private void setRelationTypes(List<RelationType> relationTypes) {
         Optional<RelationType> connectsToRelationTypeOpt = relationTypes.stream().filter(relationType -> relationType.getName().equals("ConnectsTo")).findFirst();
-        if (connectsToRelationTypeOpt.isPresent()) {
-            this.connectsToRelationType = connectsToRelationTypeOpt.get();
-        }
+        connectsToRelationTypeOpt.ifPresent(relationType -> this.connectsToRelationType = relationType);
         Optional<RelationType> hostedOnRelationTypeOpt = relationTypes.stream().filter(relationType -> relationType.getName().equals("HostedOn")).findFirst();
-        if (hostedOnRelationTypeOpt.isPresent()) {
-            this.hostedOnRelationType = hostedOnRelationTypeOpt.get();
-        }
+        hostedOnRelationTypeOpt.ifPresent(relationType -> this.hostedOnRelationType = relationType);
     }
     
 }

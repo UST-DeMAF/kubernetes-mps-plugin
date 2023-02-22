@@ -1,244 +1,90 @@
 package ust.tad.kubernetesmpsplugin.analysis;
 
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.Container;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.ContainerPort;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.EnvironmentVariable;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.Selector;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.ServicePort;
-import ust.tad.kubernetesmpsplugin.models.tadm.Artifact;
-import ust.tad.kubernetesmpsplugin.models.tadm.Component;
-import ust.tad.kubernetesmpsplugin.models.tadm.ComponentType;
-import ust.tad.kubernetesmpsplugin.models.tadm.Confidence;
-import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
-import ust.tad.kubernetesmpsplugin.models.tadm.InvalidRelationException;
-import ust.tad.kubernetesmpsplugin.models.tadm.Property;
-import ust.tad.kubernetesmpsplugin.models.tadm.PropertyType;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
+
+import java.io.IOException;
+
 
 @Service
 public class TransformationService {
+    @Value("${mps.location}")
+    private String mpsLocation;
+
+    @Value("${mps.inputModel.path}")
+    private String mpsInputPath;
+
+    @Value("${mps.result.path}")
+    private String mpsOutputPath;
 
     @Autowired
     private RelationFinderService relationFinderService;
 
-    private Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments = new HashMap<>();
-
     /**
-     * Creates EDMM components, component types and relations from the given deployments and services 
-     * of the internal Kubernetes model.
-     * Adds them to the given technology-agnostic deployment model.
-     * 
-     * @param tadm
-     * @param deployments
-     * @param services
+     * Transforms given deployments and services of the internal Kubernetes model to an EDMM model.
+     * Uses the MPS project for a model-to-model transformation.
+     * TODO In the first step, creates a file containing the tsdm model in the MPS Kubernetes
+     * language from the given internal Kubernetes model.
+     * Then, the MPS transformation is run, using the Gradle build scripts.
+     * TODO After that, the resulting EDMM model is imported and added to the already existing
+     * technology-agnostic deployment model.
+     * Lastly, the RelationFinderService is used to find EDMM relations.
+     *
+     * @param tadm                      the technology-agnostic deployment model that the
+     *                                  transformation result shall be added to
+     * @param kubernetesDeploymentModel the Kubernetes deployment model to transform
      * @return the modified technology-agnostic deployment model.
-     * @throws InvalidPropertyValueException
-     * @throws InvalidRelationException
-     * @throws MalformedURLException
-     * @throws URISyntaxException
+     * @throws IOException if the MPS transformation cannot be executed.
      */
     public TechnologyAgnosticDeploymentModel transformInternalToTADM(
-        TechnologyAgnosticDeploymentModel tadm, 
-        Set<KubernetesDeployment> deployments,  
-        Set<KubernetesService> services) throws InvalidPropertyValueException, InvalidRelationException, URISyntaxException {
-            List<Component> newComponents = new ArrayList<>();
-            List<ComponentType> newComponentTypes = new ArrayList<>();
-            for (KubernetesDeployment deployment : deployments) {
-                Component component = new Component();
-                component.setConfidence(Confidence.CONFIRMED);
-                component.setName(deployment.getName());
+            final TechnologyAgnosticDeploymentModel tadm,
+            final KubernetesDeploymentModel kubernetesDeploymentModel)
+            throws IOException {
+        createMPSKubernetesDeploymentModel(kubernetesDeploymentModel);
+        runMPSTransformation();
+        TechnologyAgnosticDeploymentModel transformationResult = importMPSResult();
+        tadm.addFromOtherTADM(transformationResult);
+        tadm.addRelations(relationFinderService.createRelations(tadm, kubernetesDeploymentModel,
+                transformationResult.getComponents()));
+        return tadm;
+    }
 
-                for (Container container : deployment.getContainer()) {
-                    List<Artifact> artifacts = component.getArtifacts();
-                    artifacts.add(createArtifactFromImage(container.getImage()));
-                    component.setArtifacts(artifacts);
-
-                    List<Property> properties = component.getProperties();
-                    properties.addAll(createPropertiesForContainerPorts(container.getContainerPorts()));
-                    properties.addAll(createPropertiesForEnvVariables(container.getEnvironmentVariables()));
-                    component.setProperties(properties);
-                }
-                
-                List<Property> properties = component.getProperties();
-                Set<ContainerPort> containerPorts = new HashSet<>();
-                deployment.getContainer().forEach(container -> containerPorts.addAll(container.getContainerPorts()));
-                properties.addAll(createPropertiesFromMatchingService(services, deployment));
-                component.setProperties(properties);
-
-                ComponentType newComponentType = createTypeForComponent(component);
-                newComponentTypes.add(newComponentType);
-                component.setType(newComponentType);
-                newComponents.add(component);
-            }
-
-            List<ComponentType> componentTypes = tadm.getComponentTypes();
-            componentTypes.addAll(newComponentTypes);
-            tadm.setComponentTypes(componentTypes);
-
-            List<Component> components = tadm.getComponents();
-            components.addAll(newComponents);
-            tadm.setComponents(components);
-
-            tadm = relationFinderService.findAndCreateRelations(tadm, newComponents, this.matchingServicesAndDeployments);
-
-            return tadm;
-        }
-
-    /**
-     * Create an EDMM artifact from a Docker image.
-     * 
-     * @param image
-     * @return the created artifact.
-     */
-    private Artifact createArtifactFromImage(String image) {
-        Artifact artifact = new Artifact();
-        artifact.setName(image);
-        artifact.setType("docker_image");
-        artifact.setConfidence(Confidence.CONFIRMED);
-        return artifact;
+    private void createMPSKubernetesDeploymentModel(
+            final KubernetesDeploymentModel kubernetesDeploymentModel) {
+        //TODO Create MPS Kubernetes Deployment Model
     }
 
     /**
-     * Create EDMM properties from container port definitions.
-     * If the container port has a name, set it as the key of the property.
-     * 
-     * @param containerPorts
-     * @return the created properties.
-     * @throws InvalidPropertyValueException
+     * Run the model-to-model transformation using the MPS project by executing two Gradle tasks.
+     * The first task ensures that MPS is ready to execute the transformation.
+     * The second task executes the transformation by running the supplied build scripts.
+     *
+     * @throws IOException if the execution of the Gradle tasks fails.
      */
-    private List<Property> createPropertiesForContainerPorts(Set<ContainerPort> containerPorts) throws InvalidPropertyValueException {
-        List<Property> properties = new ArrayList<>();
-        for (ContainerPort containerPort : containerPorts) {
-            Property property = new Property();
-            if (containerPort.getName() == null) {
-                property.setKey("container_port");
-            } else {
-                property.setKey(containerPort.getName());
-            }
-            property.setType(PropertyType.INTEGER);
-            property.setValue(containerPort.getPort());
-            property.setConfidence(Confidence.CONFIRMED);
-            properties.add(property);
-        }
-        return properties;
+    private void runMPSTransformation() throws IOException {
+        CommandLine prepareMps = CommandLine.parse("./"
+                + mpsLocation
+                + "/gradlew -p "
+                + mpsLocation
+                + " prepareMps");
+        CommandLine mpsBuild = CommandLine.parse("./"
+                + mpsLocation
+                + "/gradlew -p "
+                + mpsLocation
+                + " mpsBuild");
+        DefaultExecutor executor = new DefaultExecutor();
+        executor.execute(prepareMps);
+        executor.execute(mpsBuild);
     }
 
-    /**
-     * Create EDMM properties from environment variable definitions.
-     * 
-     * @param environmentVariables
-     * @return the created properties.
-     * @throws InvalidPropertyValueException
-     */
-    private List<Property> createPropertiesForEnvVariables(Set<EnvironmentVariable> environmentVariables) throws InvalidPropertyValueException {
-        List<Property> properties = new ArrayList<>();
-        for (EnvironmentVariable environmentVariable : environmentVariables) {
-            Property property = new Property();
-            property.setKey(environmentVariable.getKey());
-            property.setType(PropertyType.STRING);
-            property.setValue(environmentVariable.getValue());
-            property.setConfidence(Confidence.CONFIRMED);
-            properties.add(property);
-        }
-        return properties;
+    private TechnologyAgnosticDeploymentModel importMPSResult() {
+        //TODO Import transformed EDMM YAML
+        return new TechnologyAgnosticDeploymentModel();
     }
 
-    /**
-     * Creates EDMM properties from matching services to deployments.
-     * Iterates over all services and matches deployments where a selector of the service matches the label of a deployment.
-     * Then creates a new property for each port of the service.
-     * 
-     * @param services
-     * @param labels
-     * @param containerPorts
-     * @return the created properties.
-     * @throws InvalidPropertyValueException
-     */
-    private List<Property> createPropertiesFromMatchingService(Set<KubernetesService> services, KubernetesDeployment deployment) throws InvalidPropertyValueException {        
-        Set<ContainerPort> containerPorts = new HashSet<>();
-        deployment.getContainer().forEach(container -> containerPorts.addAll(container.getContainerPorts()));        
-        
-        Set<Property> properties = new HashSet<>();
-        for (KubernetesService service : services) {
-            for (Selector selector : service.getSelectors()) {
-                if (deployment.getLabels().stream().filter(label -> 
-                    label.getKey().equals(selector.getKey()) &&
-                    label.getValue().equals(selector.getValue())).count() > 0) {
-                        this.matchingServicesAndDeployments.put(service, deployment);
-                        Set<ServicePort> servicePorts = service.getServicePorts();                        
-                        properties.addAll(createPropertiesFromMatchingPorts(servicePorts, containerPorts));
-                }
-            }
-        }
-        return new ArrayList<>(properties);
-    }
-
-    /**
-     * Creates EDMM properties from matching service ports to targeted container ports.
-     * Adss the property value in the format "<port>:<targetPort>".
-     * 
-     * @param servicePorts
-     * @param containerPorts
-     * @return the created properties.
-     * @throws InvalidPropertyValueException
-     */
-    private List<Property> createPropertiesFromMatchingPorts(Set<ServicePort> servicePorts, Set<ContainerPort> containerPorts) throws InvalidPropertyValueException {
-        List<Property> properties = new ArrayList<>();
-        for (ServicePort servicePort : servicePorts) {
-            for (ContainerPort containerPort : containerPorts) {
-                if (servicePort.getTargetPort().equals(String.valueOf(containerPort.getPort())) || containerPort.getName() != null && servicePort.getTargetPort().equals(containerPort.getName())) {
-                    Property property = new Property();
-                    if (servicePort.getName() == null) {
-                        property.setKey("external_port");
-                    } else {
-                        property.setKey(servicePort.getName());
-                    }
-                    property.setType(PropertyType.STRING);
-                    property.setValue(servicePort.getPort()+":"+servicePort.getTargetPort());
-                    property.setConfidence(Confidence.CONFIRMED);
-                    properties.add(property);
-                }
-            }
-        }
-        return properties;
-    }
-
-    /**
-     * From the given EDMM component, creates a EDMM componentType.
-     * The componentType adopts all properties of the component but without a specific value.
-     * 
-     * @param component
-     * @return the created componentType.
-     * @throws InvalidPropertyValueException
-     */
-    private ComponentType createTypeForComponent(Component component) throws InvalidPropertyValueException {
-        ComponentType componentType = new ComponentType();
-        componentType.setName(component.getName()+"-type");
-
-        List<Property> properties = new ArrayList<>();
-        for (Property property : component.getProperties()) {
-            Property typeProperty = new Property();
-            typeProperty.setKey(property.getKey());
-            typeProperty.setType(property.getType());
-            typeProperty.setRequired(property.getRequired());
-            properties.add(typeProperty);
-        }
-        componentType.setProperties(properties);
-        return componentType;
-    }
-    
 }

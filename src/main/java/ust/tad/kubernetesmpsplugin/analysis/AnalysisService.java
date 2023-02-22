@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import ust.tad.kubernetesmpsplugin.analysistask.AnalysisTaskResponseSender;
 import ust.tad.kubernetesmpsplugin.analysistask.Location;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.Container;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.ContainerPort;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.EnvironmentVariable;
@@ -91,7 +92,7 @@ public class AnalysisService {
 
         try {
             runAnalysis(locations);
-        } catch (URISyntaxException | IOException | InvalidNumberOfLinesException | InvalidAnnotationException | InvalidNumberOfContentException | InvalidPropertyValueException | InvalidRelationException e) { 
+        } catch (URISyntaxException | IOException | InvalidNumberOfLinesException | InvalidAnnotationException | InvalidNumberOfContentException | InvalidPropertyValueException e) {
             e.printStackTrace();
             analysisTaskResponseSender.sendFailureResponse(taskId, e.getClass()+": "+e.getMessage());
             return;
@@ -147,9 +148,8 @@ public class AnalysisService {
      * @throws IOException
      * @throws URISyntaxException
      * @throws InvalidPropertyValueException
-     * @throws InvalidRelationException
      */
-    private void runAnalysis(List<Location> locations) throws URISyntaxException, IOException, InvalidNumberOfLinesException, InvalidAnnotationException, InvalidNumberOfContentException, InvalidPropertyValueException, InvalidRelationException {
+    private void runAnalysis(List<Location> locations) throws URISyntaxException, IOException, InvalidNumberOfLinesException, InvalidAnnotationException, InvalidNumberOfContentException, InvalidPropertyValueException {
         for(Location location : locations) {
             String locationURLString = location.getUrl().toString().trim().replaceAll("\\.$", "");
             URL locationURL = new URL(locationURLString);
@@ -176,7 +176,9 @@ public class AnalysisService {
                 }
             }
         }
-        this.tadm = transformationService.transformInternalToTADM(this.tadm, this.deployments, this.services);
+
+        this.tadm = transformationService.transformInternalToTADM(this.tadm,
+                new KubernetesDeploymentModel(this.deployments, this.services));
     }
 
     public void parseFile(URL url) throws IOException, InvalidNumberOfLinesException, InvalidAnnotationException {
