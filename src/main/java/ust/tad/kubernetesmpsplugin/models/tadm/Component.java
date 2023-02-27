@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Objects;
 
 public class Component extends ModelElement{
-
     private ComponentType type;
 
     private List<Artifact> artifacts = new ArrayList<>();

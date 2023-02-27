@@ -1,8 +1,13 @@
 package ust.tad.kubernetesmpsplugin.models.tadm;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+
 import java.util.List;
 import java.util.Objects;
 
+@JsonIdentityInfo(scope = ComponentType.class, generator = ObjectIdGenerators.PropertyGenerator.class, property="name")
 public class ComponentType extends ModelElementType{
 
     private ComponentType parentType;
@@ -20,6 +25,7 @@ public class ComponentType extends ModelElementType{
         return this.parentType;
     }
 
+    @JsonProperty("extends")
     public void setParentType(ComponentType parentType) {
         this.parentType = parentType;
     }

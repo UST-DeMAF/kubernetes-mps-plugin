@@ -1,5 +1,7 @@
 package ust.tad.kubernetesmpsplugin.models.tadm;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.net.URI;
 import java.util.Objects;
 
@@ -44,6 +46,7 @@ public class Artifact {
         return this.fileUri;
     }
 
+    @JsonProperty("fileURI")
     public void setFileUri(URI fileUri) {
         this.fileUri = fileUri;
     }

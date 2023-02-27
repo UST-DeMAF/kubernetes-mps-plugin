@@ -1,5 +1,7 @@
 package ust.tad.kubernetesmpsplugin.models.tadm;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -79,6 +81,7 @@ public class TechnologyAgnosticDeploymentModel {
         return this.componentTypes;
     }
 
+    @JsonProperty("component types")
     public void setComponentTypes(List<ComponentType> componentTypes) {
         this.componentTypes = componentTypes;
     }
@@ -87,6 +90,7 @@ public class TechnologyAgnosticDeploymentModel {
         return this.relationTypes;
     }
 
+    @JsonProperty("relation types")
     public void setRelationTypes(List<RelationType> relationTypes) {
         this.relationTypes = relationTypes;
     }
