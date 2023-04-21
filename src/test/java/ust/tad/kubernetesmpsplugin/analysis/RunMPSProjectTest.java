@@ -14,8 +14,6 @@ import java.io.IOException;
 
 @SpringBootTest
 public class RunMPSProjectTest {
-
-
     @Value("${mps.result.path}")
     private String mpsOutputPath;
 

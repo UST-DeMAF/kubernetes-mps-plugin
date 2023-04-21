@@ -1,6 +1,7 @@
 package ust.tad.kubernetesmpsplugin.analysis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -31,7 +32,7 @@ public class TransformationService {
     /**
      * Transforms given deployments and services of the internal Kubernetes model to an EDMM model.
      * Uses the MPS project for a model-to-model transformation.
-     * TODO In the first step, creates a file containing the tsdm model in the MPS Kubernetes
+     * In the first step, creates a file containing the tsdm model in the MPS Kubernetes
      * language from the given internal Kubernetes model.
      * Then, the MPS transformation is run, using the Gradle build scripts.
      * After that, the resulting EDMM model is imported and added to the already existing
@@ -58,9 +59,18 @@ public class TransformationService {
         return tadm;
     }
 
+    /**
+     * Output the Kubernetes Deployment Model to an XML file on the file system using the
+     * Jackson ObjectMapper for XML.
+     * The location on the file system is where the MPS project expects the input model.
+     *
+     * @param kubernetesDeploymentModel the Kubernetes deployment model to transform.
+     * @throws IOException if the XML file cannot be created.
+     */
     private void createMPSKubernetesDeploymentModel(
-            final KubernetesDeploymentModel kubernetesDeploymentModel) {
-        //TODO Create MPS Kubernetes Deployment Model
+            final KubernetesDeploymentModel kubernetesDeploymentModel) throws IOException {
+        XmlMapper xmlMapper = new XmlMapper();
+        xmlMapper.writeValue(new File(mpsInputPath), kubernetesDeploymentModel);
     }
 
     /**
