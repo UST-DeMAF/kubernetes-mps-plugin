@@ -11,7 +11,7 @@ public class Relation extends ModelElement{
 
     private Component target;
 
-    private Confidence confidence;
+    private Confidence confidence = Confidence.SUSPECTED;
 
 
     private static final String INVALIDRELATIONEXCEPTIONMESSAGE = "The source and the target of a relation must not be the same component.";

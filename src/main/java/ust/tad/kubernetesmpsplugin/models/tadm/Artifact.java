@@ -13,7 +13,7 @@ public class Artifact {
 
     private URI fileUri;
     
-    private Confidence confidence;
+    private Confidence confidence = Confidence.SUSPECTED;
 
 
     public Artifact() {

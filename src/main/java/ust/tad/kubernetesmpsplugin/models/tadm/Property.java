@@ -12,7 +12,7 @@ public class Property {
 
     private Object value;
     
-    private Confidence confidence;
+    private Confidence confidence = Confidence.SUSPECTED;
 
     private static final String INVALIDPROPERTYVALUEEXCEPTIONMESSAGE = "The value '%s' with type '%s' of the property does not match the given type %s";
     

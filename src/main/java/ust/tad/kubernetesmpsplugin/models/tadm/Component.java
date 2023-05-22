@@ -9,7 +9,7 @@ public class Component extends ModelElement{
 
     private List<Artifact> artifacts = new ArrayList<>();
 
-    private Confidence confidence;
+    private Confidence confidence = Confidence.SUSPECTED;
 
     public Component() {
         super();
