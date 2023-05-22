@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
-import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
+import ust.tad.kubernetesmpsplugin.models.tadm.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -100,6 +100,9 @@ public class TransformationService {
      * Imports the result from the MPS transformation.
      * The result is a YAML file located at the mpsOutputPath.
      * Uses Jackson Databind ObjectMapper to deserialize the YAML into Java Objects.
+     * Adds Mixins to the ObjectMapper for deserializing the transformation result as it contains
+     * references through the name field of components, component types, and relation types
+     * instead of the full POJO.
      *
      * @return the transformation result.
      * @throws IOException if the deserialization fails.
@@ -107,6 +110,9 @@ public class TransformationService {
     private TechnologyAgnosticDeploymentModel importMPSResult() throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         mapper.findAndRegisterModules();
+        mapper.addMixIn(Component.class, ComponentMixInJsonIdInfo.class);
+        mapper.addMixIn(ComponentType.class, ComponentTypeMixInJsonIdInfo.class);
+        mapper.addMixIn(RelationType.class, RelationTypeMixInJsonIdInfo.class);
         return mapper.readValue(new File(mpsOutputPath), TechnologyAgnosticDeploymentModel.class);
     }
 

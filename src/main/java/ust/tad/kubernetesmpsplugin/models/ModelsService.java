@@ -1,13 +1,10 @@
 package ust.tad.kubernetesmpsplugin.models;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -24,9 +21,6 @@ public class ModelsService {
     
     @Autowired
     private WebClient modelsServiceApiClient;
-    
-    @Value("${models-service.url}")
-    private String modelsServiceURL;
 
     /**
      * Retrieve a technology-specific deployment model from the model service.
@@ -49,7 +43,7 @@ public class ModelsService {
     /**
      * Update a technology-specific deployment model by sending it to the update endpoint of the models service.
      * 
-     * @param annotatedDeploymentModel
+     * @param technologySpecificDeploymentModel
      */
     public void updateTechnologySpecificDeploymentModel(TechnologySpecificDeploymentModel technologySpecificDeploymentModel) {
         LOG.info("Updating technology-specific deployment model");
@@ -77,8 +71,7 @@ public class ModelsService {
                 .build())
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
-            .bodyToMono(new ParameterizedTypeReference<TechnologyAgnosticDeploymentModel>() {
-            })
+            .bodyToMono(TechnologyAgnosticDeploymentModel.class)
             .block();
     }
 
@@ -95,8 +88,7 @@ public class ModelsService {
             .accept(MediaType.APPLICATION_JSON)
             .body(BodyInserters.fromValue(technologyAgnosticDeploymentModel))
             .retrieve()
-            .bodyToMono(new ParameterizedTypeReference<TechnologyAgnosticDeploymentModel>() {
-            })
+            .bodyToMono(TechnologySpecificDeploymentModel.class)
             .block();
     }
 }
