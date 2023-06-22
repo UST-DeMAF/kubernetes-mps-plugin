@@ -110,9 +110,11 @@ public class TransformationService {
     private TechnologyAgnosticDeploymentModel importMPSResult() throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         mapper.findAndRegisterModules();
-        mapper.addMixIn(Component.class, ComponentMixInJsonIdInfo.class);
-        mapper.addMixIn(ComponentType.class, ComponentTypeMixInJsonIdInfo.class);
-        mapper.addMixIn(RelationType.class, RelationTypeMixInJsonIdInfo.class);
+        mapper.addMixIn(Component.class, ComponentMixIn.class);
+        mapper.addMixIn(ComponentType.class, ComponentTypeMixIn.class);
+        mapper.addMixIn(RelationType.class, RelationTypeMixIn.class);
+        mapper.addMixIn(TechnologyAgnosticDeploymentModel.class,
+                TechnologyAgnosticDeploymentModelMixIn.class);
         return mapper.readValue(new File(mpsOutputPath), TechnologyAgnosticDeploymentModel.class);
     }
 

@@ -82,13 +82,14 @@ public class ModelsService {
      */
     public void updateTechnologyAgnosticDeploymentModel(TechnologyAgnosticDeploymentModel technologyAgnosticDeploymentModel) {
         LOG.info("Updating technology-agnostic deployment model");
+        LOG.info(technologyAgnosticDeploymentModel.toString());
         modelsServiceApiClient.post()
             .uri("/technology-agnostic")
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .body(BodyInserters.fromValue(technologyAgnosticDeploymentModel))
             .retrieve()
-            .bodyToMono(TechnologySpecificDeploymentModel.class)
+            .bodyToMono(TechnologyAgnosticDeploymentModel.class)
             .block();
     }
 }

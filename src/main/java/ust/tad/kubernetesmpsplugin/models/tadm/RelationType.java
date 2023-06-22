@@ -1,7 +1,5 @@
 package ust.tad.kubernetesmpsplugin.models.tadm;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
 import java.util.Objects;
 
@@ -23,7 +21,6 @@ public class RelationType extends ModelElementType{
         return this.parentType;
     }
 
-    @JsonProperty("extends")
     public void setParentType(RelationType parentType) {
         this.parentType = parentType;
     }
