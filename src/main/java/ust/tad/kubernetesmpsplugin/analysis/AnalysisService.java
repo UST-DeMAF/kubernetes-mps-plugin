@@ -13,8 +13,6 @@ import java.util.ListIterator;
 import java.util.Set;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -32,7 +30,6 @@ import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.Selector;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.ServicePort;
 import ust.tad.kubernetesmpsplugin.models.ModelsService;
 import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
-import ust.tad.kubernetesmpsplugin.models.tadm.InvalidRelationException;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
 import ust.tad.kubernetesmpsplugin.models.tsdm.DeploymentModelContent;
 import ust.tad.kubernetesmpsplugin.models.tsdm.InvalidAnnotationException;
@@ -44,8 +41,6 @@ import ust.tad.kubernetesmpsplugin.models.tsdm.TechnologySpecificDeploymentModel
 @Service
 public class AnalysisService {
 
-    private static final Logger LOG =
-            LoggerFactory.getLogger(AnalysisService.class);
     @Autowired
     private ModelsService modelsService;
 
@@ -93,7 +88,6 @@ public class AnalysisService {
             return;            
         }
         this.tadm = modelsService.getTechnologyAgnosticDeploymentModel(transformationProcessId);
-        LOG.info(this.tadm.toString());
 
         try {
             runAnalysis(locations);
@@ -103,7 +97,6 @@ public class AnalysisService {
             return;
         }
 
-        LOG.info(this.tadm.toString());
         updateDeploymentModels(this.tsdm, this.tadm);
 
         if(newEmbeddedDeploymentModelIndexes.isEmpty()) {
