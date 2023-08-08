@@ -29,6 +29,6 @@ jobs:
           pack build index.docker.io/well5a/$IMAGE_NAME:latest \
               --builder paketobuildpacks/builder:base \
               --path . \
-              --env BP_INCLUDE_FILES="mps-transformation/**" \
+              --env BP_INCLUDE_FILES="mps-transformation/*" \
               --cache-image index.docker.io/well5a/$IMAGE_NAME-paketo-cache-image:latest \
               --publish
