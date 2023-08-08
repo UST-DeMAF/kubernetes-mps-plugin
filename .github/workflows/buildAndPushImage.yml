@@ -7,6 +7,7 @@ on:
       
 env:
   IMAGE_NAME: kubernetes-mps-plugin
+  BP_INCLUDE_FILES: src/main/resources/mps-transformation/
 
 jobs:
   build-with-paketo-push-2-dockerhub:
