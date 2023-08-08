@@ -7,7 +7,6 @@ on:
       
 env:
   IMAGE_NAME: kubernetes-mps-plugin
-  BP_INCLUDE_FILES: src/main/resources/mps-transformation/
 
 jobs:
   build-with-paketo-push-2-dockerhub:
@@ -28,5 +27,6 @@ jobs:
           pack build index.docker.io/well5a/$IMAGE_NAME:latest \
               --builder paketobuildpacks/builder:base \
               --path . \
+              --env BP_INCLUDE_FILES=src/main/resources/mps-transformation/
               --cache-image index.docker.io/well5a/$IMAGE_NAME-paketo-cache-image:latest \
               --publish
