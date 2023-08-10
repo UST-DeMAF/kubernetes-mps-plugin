@@ -31,5 +31,6 @@ jobs:
               --path . \
               --env BP_INCLUDE_FILES="mps-transformation/*" \
               --env BP_JVM_VERSION=11 \
+              --env BPL_JAVA_NMT_ENABLED=false \
               --cache-image index.docker.io/well5a/$IMAGE_NAME-paketo-cache-image:latest \
               --publish
