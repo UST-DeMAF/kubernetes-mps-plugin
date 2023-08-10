@@ -82,7 +82,6 @@ public class ModelsService {
      */
     public void updateTechnologyAgnosticDeploymentModel(TechnologyAgnosticDeploymentModel technologyAgnosticDeploymentModel) {
         LOG.info("Updating technology-agnostic deployment model");
-        LOG.info(technologyAgnosticDeploymentModel.toString());
         modelsServiceApiClient.post()
             .uri("/technology-agnostic")
             .contentType(MediaType.APPLICATION_JSON)
