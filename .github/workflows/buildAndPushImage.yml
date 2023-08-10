@@ -30,5 +30,6 @@ jobs:
               --builder paketobuildpacks/builder:base \
               --path . \
               --env BP_INCLUDE_FILES="mps-transformation/*" \
+              --env BP_JVM_VERSION=11 \
               --cache-image index.docker.io/well5a/$IMAGE_NAME-paketo-cache-image:latest \
               --publish
