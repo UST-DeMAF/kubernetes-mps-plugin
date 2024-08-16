@@ -11,6 +11,7 @@ WORKDIR /app
 
 COPY pom.xml .
 COPY src ./src
+COPY mps-transformation-kubernetes ./mps-transformation-kubernetes
 
 RUN mvn clean package -DskipTests
 
