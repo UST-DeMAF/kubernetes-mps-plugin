@@ -9,9 +9,11 @@ on:
     branches:
       - 'main'
       
+
 env:
   IMAGE_NAME: kubernetes-mps-plugin
   IMAGE_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'testing' }}
+
 jobs:
   build-with-paketo-push-2-dockerhub:
     runs-on: ubuntu-latest
@@ -25,16 +27,8 @@ jobs:
         env:
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKERHUBTOKEN }}
 
-      - name: Install pack CLI via the official buildpack Action https://github.com/buildpacks/github-actions#setup-pack-cli-action
-        uses: buildpacks/github-actions/setup-pack@v4.8.0
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag well5a/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: Build app with pack CLI using Buildpack Cache image (see https://buildpacks.io/docs/app-developer-guide/using-cache-image/) & publish to Docker Hub
-        run: |
-          pack build index.docker.io/well5a/$IMAGE_NAME:$IMAGE_TAG \
-              --builder paketobuildpacks/builder:base \
-              --path . \
-              --env BP_INCLUDE_FILES="mps-transformation-kubernetes/*" \
-              --env BP_JVM_VERSION=11 \
-              --env BPL_JAVA_NMT_ENABLED=false \
-              --cache-image index.docker.io/well5a/$IMAGE_NAME-paketo-cache-image:$IMAGE_TAG \
-              --publish
+      - name: Push the Docker image
+        run: docker push well5a/$IMAGE_NAME:$IMAGE_TAG
