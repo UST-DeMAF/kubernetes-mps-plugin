@@ -2,7 +2,7 @@ FROM debian:latest
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y default-jdk maven curl \
+    && apt-get install -y default-jdk maven curl gradle \
     && apt-get autoremove -y \
     && apt-get autoclean -y
 
