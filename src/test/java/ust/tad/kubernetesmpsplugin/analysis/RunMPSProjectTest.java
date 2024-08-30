@@ -19,8 +19,8 @@ public class RunMPSProjectTest {
 
     @Test
     public void runProject() {
-        String prepareMpsCommand = "./mps-transformation-kubernetes/gradlew -p mps-transformation prepareMps";
-        String mpsBuildCommand = "./mps-transformation-kubernetes/gradlew -p mps-transformation mpsBuild";
+        String prepareMpsCommand = "./mps-transformation-kubernetes/gradlew -p mps-transformation-kubernetes prepareMps";
+        String mpsBuildCommand = "./mps-transformation-kubernetes/gradlew -p mps-transformation-kubernetes mpsBuild";
         try {
             Runtime.getRuntime().exec(prepareMpsCommand);
             Runtime.getRuntime().exec(mpsBuildCommand);
@@ -31,8 +31,8 @@ public class RunMPSProjectTest {
 
     @Test
     public void runProjectApacheCommonsExec() throws IOException {
-        CommandLine prepareMps = CommandLine.parse("./mps-transformation-kubernetes/gradlew -p mps-transformation prepareMps");
-        CommandLine mpsBuild = CommandLine.parse("./mps-transformation-kubernetes/gradlew -p mps-transformation mpsBuild");
+        CommandLine prepareMps = CommandLine.parse("./mps-transformation-kubernetes/gradlew -p mps-transformation-kubernetes prepareMps");
+        CommandLine mpsBuild = CommandLine.parse("./mps-transformation-kubernetes/gradlew -p mps-transformation-kubernetes mpsBuild");
         DefaultExecutor executor = new DefaultExecutor();
         int exitValuePrepareMps = executor.execute(prepareMps);
         System.out.println(exitValuePrepareMps);
