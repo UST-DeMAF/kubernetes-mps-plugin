@@ -6,12 +6,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -50,7 +47,7 @@ public class AnalysisService {
     @Autowired
     private TransformationService transformationService;
 
-    private static final Set<String> supportedFileExtensions = Set.of("yaml", "yml");
+    private static final Set<String> supportedFileExtensions = Set.of("yaml", "yml", "env");
     
     private TechnologySpecificDeploymentModel tsdm;
 
@@ -157,8 +154,12 @@ public class AnalysisService {
                 File directory = new File(locationURL.toURI());
                 for (File file : directory.listFiles()) {
                     String fileExtension = StringUtils.getFilenameExtension(file.toURI().toURL().toString());
-                    if(fileExtension != null && supportedFileExtensions.contains(fileExtension)) {                        
-                        parseFile(file.toURI().toURL());
+                    if(fileExtension != null && supportedFileExtensions.contains(fileExtension)) {
+                        if (fileExtension.equals("env")) {
+                            parseEnvFile(file.toURI().toURL());
+                        } else {
+                            parseFile(file.toURI().toURL());
+                        }
                     }
                 }
                 DeploymentModelContent contentToRemove = new DeploymentModelContent();
@@ -170,8 +171,12 @@ public class AnalysisService {
                 this.tsdm.removeDeploymentModelContent(contentToRemove);
             } else {
                 String fileExtension = StringUtils.getFilenameExtension(locationURLString);
-                if(supportedFileExtensions.contains(fileExtension)) {  
-                    parseFile(locationURL);
+                if(supportedFileExtensions.contains(fileExtension)) {
+                    if (fileExtension.equals("env")) {
+                        parseEnvFile(locationURL);
+                    } else {
+                        parseFile(locationURL);
+                    }
                 }
             }
         }
@@ -221,6 +226,60 @@ public class AnalysisService {
             this.tsdm.addDeploymentModelContent(deploymentModelContent);
         }
     }
+
+    /**
+     * Parse the environment file and add the environment variables to the containers of the deployments.
+     *
+     * @param url
+     * @throws IOException
+     */
+
+
+    public void parseEnvFile(URL url) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+        Map<String, String> envMap = new HashMap<>();
+        String line;
+        while((line = reader.readLine()) != null) {
+            if (line.trim().isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            String[] keyValue = line.split("=", 2);
+            if (keyValue.length == 2) {
+                envMap.put(keyValue[0].trim(), keyValue[1].trim());
+            }
+        }
+        reader.close();
+
+
+        Pattern pattern = Pattern.compile("\\$\\{([^}]+)\\}");
+        for (Map.Entry<String, String> entry : envMap.entrySet()) {
+            String value = entry.getValue();
+            Matcher matcher = pattern.matcher(value);
+            while (matcher.find()) {
+                String referencedKey = matcher.group(1);
+                String referencedValue = envMap.get(referencedKey);
+                if (referencedValue != null) {
+                    value = value.replace("${" + referencedKey + "}", referencedValue);
+                }
+            }
+            envMap.put(entry.getKey(), value);
+        }
+
+
+        Set<EnvironmentVariable> environmentVariables = new HashSet<>();
+        for (Map.Entry<String, String> entry : envMap.entrySet()) {
+            environmentVariables.add(new EnvironmentVariable(entry.getKey(), entry.getValue()));
+        }
+
+
+        for (KubernetesDeployment deployment: this.deployments) {
+            Set<Container> containers = deployment.getContainer();
+            for (Container container: containers) {
+                container.getEnvironmentVariables().addAll(environmentVariables);
+            }
+        }
+    }
+
 
     private List<Line> createLinesForUnknownType(int lineNumber, List<String> readInLines) throws InvalidAnnotationException {
         List<Line> lines = new ArrayList<>();
