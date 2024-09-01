@@ -47,7 +47,7 @@ public class AnalysisService {
     @Autowired
     private TransformationService transformationService;
 
-    private static final Set<String> supportedFileExtensions = Set.of("yaml", "yml", "env");
+    private static final Set<String> supportedFileExtensions = Set.of("yaml", "yml");
     
     private TechnologySpecificDeploymentModel tsdm;
 
@@ -250,28 +250,13 @@ public class AnalysisService {
         }
         reader.close();
 
-
-        Pattern pattern = Pattern.compile("\\$\\{([^}]+)\\}");
-        for (Map.Entry<String, String> entry : envMap.entrySet()) {
-            String value = entry.getValue();
-            Matcher matcher = pattern.matcher(value);
-            while (matcher.find()) {
-                String referencedKey = matcher.group(1);
-                String referencedValue = envMap.get(referencedKey);
-                if (referencedValue != null) {
-                    value = value.replace("${" + referencedKey + "}", referencedValue);
-                }
-            }
-            envMap.put(entry.getKey(), value);
-        }
-
-
+        // all environment variables with its key and value pairs are stored in a set
         Set<EnvironmentVariable> environmentVariables = new HashSet<>();
         for (Map.Entry<String, String> entry : envMap.entrySet()) {
             environmentVariables.add(new EnvironmentVariable(entry.getKey(), entry.getValue()));
         }
 
-
+        // add the environment variables to all containers of all deployments
         for (KubernetesDeployment deployment: this.deployments) {
             Set<Container> containers = deployment.getContainer();
             for (Container container: containers) {
