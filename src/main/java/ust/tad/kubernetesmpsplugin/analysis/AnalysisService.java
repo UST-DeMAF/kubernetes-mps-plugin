@@ -7,9 +7,8 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -38,6 +37,8 @@ import ust.tad.kubernetesmpsplugin.models.tsdm.TechnologySpecificDeploymentModel
 @Service
 public class AnalysisService {
 
+    private final Logger LOG = LoggerFactory.getLogger(AnalysisService.class);
+
     @Autowired
     private ModelsService modelsService;
 
@@ -48,7 +49,7 @@ public class AnalysisService {
     private TransformationService transformationService;
 
     private static final Set<String> supportedFileExtensions = Set.of("yaml", "yml");
-    
+
     private TechnologySpecificDeploymentModel tsdm;
 
     private TechnologyAgnosticDeploymentModel tadm;
@@ -66,8 +67,8 @@ public class AnalysisService {
      * 3. Update tsdm with new information
      * 4. Transform to EDMM entities and update tadm
      * 5. Send updated models to models service
-     * 6. Send AnalysisTaskResponse or EmbeddedDeploymentModelAnalysisRequests if present 
-     * 
+     * 6. Send AnalysisTaskResponse or EmbeddedDeploymentModelAnalysisRequests if present
+     *
      * @param taskId
      * @param transformationProcessId
      * @param commands
@@ -77,12 +78,12 @@ public class AnalysisService {
         this.newEmbeddedDeploymentModelIndexes.clear();
         this.deployments.clear();
         this.services.clear();
-        
+
         TechnologySpecificDeploymentModel completeTsdm = modelsService.getTechnologySpecificDeploymentModel(transformationProcessId);
         this.tsdm = getExistingTsdm(completeTsdm, locations);
         if(tsdm == null) {
             analysisTaskResponseSender.sendFailureResponse(taskId, "No technology-specific deployment model found!");
-            return;            
+            return;
         }
         this.tadm = modelsService.getTechnologyAgnosticDeploymentModel(transformationProcessId);
 
@@ -101,7 +102,7 @@ public class AnalysisService {
         } else {
             for (int index : newEmbeddedDeploymentModelIndexes) {
                 analysisTaskResponseSender.sendEmbeddedDeploymentModelAnalysisRequestFromModel(
-                    this.tsdm.getEmbeddedDeploymentModels().get(index), taskId); 
+                        this.tsdm.getEmbeddedDeploymentModels().get(index), taskId);
             }
             analysisTaskResponseSender.sendSuccessResponse(taskId);
         }
@@ -123,7 +124,7 @@ public class AnalysisService {
         }
         return null;
     }
-    
+
     private void updateDeploymentModels(TechnologySpecificDeploymentModel tsdm, TechnologyAgnosticDeploymentModel tadm) {
         modelsService.updateTechnologySpecificDeploymentModel(tsdm);
         modelsService.updateTechnologyAgnosticDeploymentModel(tadm);
@@ -136,7 +137,7 @@ public class AnalysisService {
      * If the given location is a directory, iterate over all contained files.
      * Removes the deployment model content associated with the old directory locations
      * because it has been resolved to the contained files.
-     * 
+     *
      * @param locations
      * @throws InvalidNumberOfContentException
      * @throws InvalidAnnotationException
@@ -149,16 +150,17 @@ public class AnalysisService {
         for(Location location : locations) {
             String locationURLString = location.getUrl().toString().trim().replaceAll("\\.$", "");
             URL locationURL = new URL(locationURLString);
-
             if ("file".equals(locationURL.getProtocol()) && new File(locationURL.toURI()).isDirectory()) {
                 File directory = new File(locationURL.toURI());
-                for (File file : directory.listFiles()) {
+                File[] files = directory.listFiles();
+                for (File file : files) {
                     String fileExtension = StringUtils.getFilenameExtension(file.toURI().toURL().toString());
                     if(fileExtension != null && supportedFileExtensions.contains(fileExtension)) {
-                        if (fileExtension.equals("env")) {
-                            parseEnvFile(file.toURI().toURL());
-                        } else {
-                            parseFile(file.toURI().toURL());
+                        parseFile(file.toURI().toURL());
+                        // Check if there is a corresponding .env file in the same directory
+                        File envFile = new File(file.getParentFile(), ".env");
+                        if (envFile.exists()) {
+                            parseEnvFile(envFile.toURI().toURL());
                         }
                     }
                 }
@@ -172,10 +174,17 @@ public class AnalysisService {
             } else {
                 String fileExtension = StringUtils.getFilenameExtension(locationURLString);
                 if(supportedFileExtensions.contains(fileExtension)) {
-                    if (fileExtension.equals("env")) {
-                        parseEnvFile(locationURL);
-                    } else {
-                        parseFile(locationURL);
+                    parseFile(locationURL);
+
+                    File envLocation = new File(locationURL.toURI()).getParentFile();
+                    File[] files = envLocation.listFiles();
+                    for (File file : files) {
+                        if (file.getName().endsWith(".env")) {
+                            parseEnvFile(file.toURI().toURL());
+                        }
+                        else {
+                            LOG.info("No .env file found");
+                        }
                     }
                 }
             }
@@ -204,14 +213,14 @@ public class AnalysisService {
                     nextline = reader.readLine();
                     lineNumber++;
                 }
-                switch (kind) {                    
-                    case "Service":                        
+                switch (kind) {
+                    case "Service":
                         lines.addAll(createService(startLineNumber, readInLines));
                         break;
                     case "StatefulSet":
                     case "Deployment":
                         lines.addAll(createDeployment(startLineNumber, readInLines));
-                        break;               
+                        break;
                     default:
                         lines.addAll(createLinesForUnknownType(lineNumber, readInLines));
                         break;
@@ -228,7 +237,8 @@ public class AnalysisService {
     }
 
     /**
-     * Parse the environment file and add the environment variables to the containers of the deployments.
+     * Parse the .env file and add the environment variables to the corresponding containers by name
+     *
      *
      * @param url
      * @throws IOException
@@ -250,17 +260,23 @@ public class AnalysisService {
         }
         reader.close();
 
-        // all environment variables with its key and value pairs are stored in a set
-        Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-        for (Map.Entry<String, String> entry : envMap.entrySet()) {
-            environmentVariables.add(new EnvironmentVariable(entry.getKey(), entry.getValue()));
-        }
-
         // add the environment variables to all containers of all deployments
         for (KubernetesDeployment deployment: this.deployments) {
             Set<Container> containers = deployment.getContainer();
             for (Container container: containers) {
-                container.getEnvironmentVariables().addAll(environmentVariables);
+                try {
+                    String containerName = container.getName();
+                    // all environment variables with its key and value pairs are stored in a set
+                    Set<EnvironmentVariable> environmentVariables = new HashSet<>();
+                    for (Map.Entry<String, String> entry : envMap.entrySet()) {
+
+                        if (entry.getKey().contains(containerName)) {
+                            environmentVariables.add(new EnvironmentVariable(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                    container.getEnvironmentVariables().addAll(environmentVariables);
+                } catch (NullPointerException e) {
+                }
             }
         }
     }
@@ -292,7 +308,7 @@ public class AnalysisService {
                             lines.add(new Line(lineNumber, 1D, true));
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("name:")) {
                         String name = currentLine.split("name:")[1].trim();
@@ -306,15 +322,15 @@ public class AnalysisService {
                     }
                 }
                 if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
+                    linesIterator.previous();
                 }
             } else if (currentLine.startsWith("spec:")) {
                 lines.add(new Line(lineNumber, 1D, true));
                 while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
                     lineNumber++;
-                    if (currentLine.trim().startsWith("ports:")) { 
+                    if (currentLine.trim().startsWith("ports:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
+                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {
                             ServicePort servicePort = new ServicePort();
                             currentLine = currentLine.replaceFirst("-", " ");
                             int numberOfWhitespaces = currentLine.length() - currentLine.stripLeading().length();
@@ -330,7 +346,7 @@ public class AnalysisService {
                                     servicePort.setPort(Integer.parseInt(lineSplit[1].trim()));
                                 } else if (currentLine.trim().startsWith("targetPort:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setTargetPort(lineSplit[1].trim());                                    
+                                    servicePort.setTargetPort(lineSplit[1].trim());
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
@@ -342,14 +358,14 @@ public class AnalysisService {
                                 }
                             }
                             if (linesIterator.hasNext()) {
-                                linesIterator.previous();                                
+                                linesIterator.previous();
                             }
                             Set<ServicePort> servicePorts = kubernetesService.getServicePorts();
                             servicePorts.add(servicePort);
                             kubernetesService.setServicePorts(servicePorts);
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("selector:")) {
                         lines.add(new Line(lineNumber, 1D, true));
@@ -363,14 +379,14 @@ public class AnalysisService {
                             lines.add(new Line(lineNumber, 1D, true));
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
                 if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
+                    linesIterator.previous();
                 }
             } else if (currentLine.startsWith("kind:")) {
                 lines.add(new Line(lineNumber, 1D, true));
@@ -406,7 +422,7 @@ public class AnalysisService {
                             lines.add(new Line(lineNumber, 1D, true));
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("name:")) {
                         String name = currentLine.split("name:")[1].trim();
@@ -420,13 +436,13 @@ public class AnalysisService {
                     }
                 }
                 if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
+                    linesIterator.previous();
                 }
             } else if (currentLine.startsWith("spec:")) {
                 lines.add(new Line(lineNumber, 1D, true));
                 while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
-                    lineNumber++;                    
-                    if (currentLine.trim().startsWith("replicas:")) { 
+                    lineNumber++;
+                    if (currentLine.trim().startsWith("replicas:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         int replicas = Integer.parseInt(currentLine.split("replicas:")[1].trim());
                         kubernetesDeployment.setReplicas(replicas);
@@ -437,7 +453,7 @@ public class AnalysisService {
                             lines.add(new Line(lineNumber, 1D, true));
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("template:")) {
                         lines.add(new Line(lineNumber, 1D, true));
@@ -450,7 +466,7 @@ public class AnalysisService {
                                     lines.add(new Line(lineNumber, 1D, true));
                                 }
                                 if (linesIterator.hasNext()) {
-                                    linesIterator.previous();                                
+                                    linesIterator.previous();
                                 }
                             } else if (currentLine.trim().startsWith("spec:")) {
                                 lines.add(new Line(lineNumber, 1D, true));
@@ -458,7 +474,7 @@ public class AnalysisService {
                                     lineNumber++;
                                     if (currentLine.trim().startsWith("containers:")) {
                                         lines.add(new Line(lineNumber, 1D, true));
-                                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
+                                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {
                                             Container container = new Container();
                                             currentLine = currentLine.replaceFirst("-", " ");
                                             int numberOfWhitespaces = currentLine.length() - currentLine.stripLeading().length();
@@ -474,7 +490,7 @@ public class AnalysisService {
                                                 } else if (currentLine.trim().startsWith("ports:")) {
                                                     lines.add(new Line(lineNumber, 1D, true));
                                                     Set<ContainerPort> containerPorts = new HashSet<>();
-                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
+                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {
                                                         ContainerPort containerPort = new ContainerPort();
                                                         currentLine = currentLine.replaceFirst("-", " ");
                                                         int numberOfWhitespacesPort = currentLine.length() - currentLine.stripLeading().length();
@@ -490,7 +506,7 @@ public class AnalysisService {
                                                                 containerPort.setPort(Integer.parseInt(lineSplitPort[1].trim()));
                                                             } else {
                                                                 lines.add(new Line(lineNumber, 0D, true));
-                                                            }                            
+                                                            }
                                                             if (linesIterator.hasNext()) {
                                                                 currentLine = linesIterator.next();
                                                             } else {
@@ -498,18 +514,18 @@ public class AnalysisService {
                                                             }
                                                         }
                                                         if (linesIterator.hasNext()) {
-                                                            linesIterator.previous();                                
+                                                            linesIterator.previous();
                                                         }
                                                         containerPorts.add(containerPort);
                                                     }
                                                     if (linesIterator.hasNext()) {
-                                                        linesIterator.previous();                                
+                                                        linesIterator.previous();
                                                     }
-                                                    container.setContainerPorts(containerPorts);                                    
+                                                    container.setContainerPorts(containerPorts);
                                                 } else if (currentLine.trim().startsWith("env:")) {
                                                     lines.add(new Line(lineNumber, 1D, true));
                                                     Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
+                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {
                                                         EnvironmentVariable environmentVariable = new EnvironmentVariable();
                                                         currentLine = currentLine.replaceFirst("-", " ");
                                                         int numberOfWhitespacesEnv = currentLine.length() - currentLine.stripLeading().length();
@@ -524,7 +540,7 @@ public class AnalysisService {
                                                                 environmentVariable.setValue(currentLine.split("value:")[1].trim());
                                                             } else {
                                                                 lines.add(new Line(lineNumber, 0D, true));
-                                                            }                            
+                                                            }
                                                             if (linesIterator.hasNext()) {
                                                                 currentLine = linesIterator.next();
                                                             } else {
@@ -532,19 +548,19 @@ public class AnalysisService {
                                                             }
                                                         }
                                                         if (linesIterator.hasNext()) {
-                                                            linesIterator.previous();                                
+                                                            linesIterator.previous();
                                                         }
                                                         if (environmentVariable.getKey() != null && environmentVariable.getValue() != null) {
                                                             environmentVariables.add(environmentVariable);
                                                         }
                                                     }
                                                     if (linesIterator.hasNext()) {
-                                                        linesIterator.previous();                                
+                                                        linesIterator.previous();
                                                     }
-                                                    container.setEnvironmentVariables(environmentVariables);                                  
+                                                    container.setEnvironmentVariables(environmentVariables);
                                                 } else {
                                                     lines.add(new Line(lineNumber, 0D, true));
-                                                }                
+                                                }
                                                 if (linesIterator.hasNext()) {
                                                     currentLine = linesIterator.next();
                                                 } else {
@@ -552,46 +568,44 @@ public class AnalysisService {
                                                 }
                                             }
                                             if (linesIterator.hasNext()) {
-                                                linesIterator.previous();                                
+                                                linesIterator.previous();
                                             }
                                             Set<Container> containerSet = kubernetesDeployment.getContainer();
                                             containerSet.add(container);
                                             kubernetesDeployment.setContainer(containerSet);
                                         }
                                         if (linesIterator.hasNext()) {
-                                            linesIterator.previous();                                
+                                            linesIterator.previous();
                                         }
                                     } else {
                                         lines.add(new Line(lineNumber, 0D, true));
                                     }
                                 }
                                 if (linesIterator.hasNext()) {
-                                    linesIterator.previous();                                
+                                    linesIterator.previous();
                                 }
-                            } else {                                
+                            } else {
                                 lines.add(new Line(lineNumber, 0D, true));
                             }
                         }
                         if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
+                            linesIterator.previous();
                         }
                     } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
                 if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
+                    linesIterator.previous();
                 }
             }else if (currentLine.startsWith("kind:")) {
                 lines.add(new Line(lineNumber, 1D, true));
             } else {
                 lines.add(new Line(lineNumber, 0D, true));
-            }            
+            }
             lineNumber++;
         }
         this.deployments.add(kubernetesDeployment);
         return lines;
     }
-
-    
 }
