@@ -174,6 +174,7 @@ public class AnalysisService {
             } else {
                 String fileExtension = StringUtils.getFilenameExtension(locationURLString);
                 if(supportedFileExtensions.contains(fileExtension)) {
+                    boolean envFileFound = false;
                     parseFile(locationURL);
 
                     File envLocation = new File(locationURL.toURI()).getParentFile();
@@ -181,10 +182,11 @@ public class AnalysisService {
                     for (File file : files) {
                         if (file.getName().endsWith(".env")) {
                             parseEnvFile(file.toURI().toURL());
+                            envFileFound = true;
                         }
-                        else {
-                            LOG.info("No .env file found");
-                        }
+                    }
+                    if (!envFileFound) {
+                        LOG.info("No .env file found");
                     }
                 }
             }
