@@ -74,7 +74,8 @@ public class AnalysisService {
      * @param commands
      * @param locations
      */
-    public void startAnalysis(UUID taskId, UUID transformationProcessId, List<String> commands, List<Location> locations) {
+    public void startAnalysis(UUID taskId, UUID transformationProcessId, List<String> commands,
+                              List<String> options, List<Location> locations) {
         this.newEmbeddedDeploymentModelIndexes.clear();
         this.deployments.clear();
         this.services.clear();
