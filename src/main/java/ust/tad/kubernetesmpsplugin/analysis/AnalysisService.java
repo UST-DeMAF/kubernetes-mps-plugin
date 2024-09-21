@@ -166,16 +166,10 @@ public class AnalysisService {
       URL locationURL = new URL(locationURLString);
       if ("file".equals(locationURL.getProtocol()) && new File(locationURL.toURI()).isDirectory()) {
         File directory = new File(locationURL.toURI());
-        File[] files = directory.listFiles();
-        for (File file : files) {
+        for (File file : directory.listFiles()) {
           String fileExtension = StringUtils.getFilenameExtension(file.toURI().toURL().toString());
           if (fileExtension != null && supportedFileExtensions.contains(fileExtension)) {
             parseFile(file.toURI().toURL());
-            // Check if there is a corresponding .env file in the same directory
-            File envFile = new File(file.getParentFile(), ".env");
-            if (envFile.exists()) {
-              parseEnvFile(envFile.toURI().toURL());
-            }
           }
         }
         DeploymentModelContent contentToRemove = new DeploymentModelContent();
@@ -188,20 +182,7 @@ public class AnalysisService {
       } else {
         String fileExtension = StringUtils.getFilenameExtension(locationURLString);
         if (supportedFileExtensions.contains(fileExtension)) {
-          boolean envFileFound = false;
           parseFile(locationURL);
-
-          File envLocation = new File(locationURL.toURI()).getParentFile();
-          File[] files = envLocation.listFiles();
-          for (File file : files) {
-            if (file.getName().endsWith(".env")) {
-              parseEnvFile(file.toURI().toURL());
-              envFileFound = true;
-            }
-          }
-          if (!envFileFound) {
-            LOG.info("No .env file found");
-          }
         }
       }
     }
@@ -251,48 +232,6 @@ public class AnalysisService {
     if (!lines.isEmpty()) {
       deploymentModelContent.setLines(lines);
       this.tsdm.addDeploymentModelContent(deploymentModelContent);
-    }
-  }
-
-  /**
-   * Parse the .env file and add the environment variables to the corresponding containers by name
-   *
-   * @param url
-   * @throws IOException
-   */
-  public void parseEnvFile(URL url) throws IOException {
-    BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-    Map<String, String> envMap = new HashMap<>();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      if (line.trim().isEmpty() || line.startsWith("#")) {
-        continue;
-      }
-      String[] keyValue = line.split("=", 2);
-      if (keyValue.length == 2) {
-        envMap.put(keyValue[0].trim(), keyValue[1].trim());
-      }
-    }
-    reader.close();
-
-    // add the environment variables to all containers of all deployments
-    for (KubernetesDeployment deployment : this.deployments) {
-      Set<Container> containers = deployment.getContainer();
-      for (Container container : containers) {
-        try {
-          String containerName = container.getName();
-          // all environment variables with its key and value pairs are stored in a set
-          Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-          for (Map.Entry<String, String> entry : envMap.entrySet()) {
-
-            if (entry.getKey().contains(containerName)) {
-              environmentVariables.add(new EnvironmentVariable(entry.getKey(), entry.getValue()));
-            }
-          }
-          container.getEnvironmentVariables().addAll(environmentVariables);
-        } catch (NullPointerException e) {
-        }
-      }
     }
   }
 
