@@ -12,8 +12,23 @@ COPY mps-transformation-kubernetes ./mps-transformation-kubernetes
 # Create the necessary directory for transformation input
 RUN mkdir -p /app/mps-transformation-kubernetes/transformationInput
 
+# Conditionally comment out the line 'executor.execute(prepareMps)' if SLIM=1
+ARG SLIM
+RUN if [ "$SLIM" != "1" ]; then \
+    sed -i 's/executor\.execute(prepareMps)/\/\/ executor.execute(prepareMps)/' /app/src/main/java/ust/tad/kubernetesmpsplugin/analysis/TransformationService.java; \
+    fi
+
 # Build the project, using multiple threads and skipping tests
 RUN mvn -T 2C -q clean package -DskipTests
+
+# Download MPS iff SLIM!=1
+RUN if [ "$SLIM" != "1" ]; then \
+    cd mps-transformation-kubernetes && \
+    ./gradlew prepareMps; \
+    fi
+
+# Remove JBR tarball and MPS/Plugin zips
+RUN rm -rf /app/mps-transformation-kubernetes/build/download
 
 # Stage 2: Create a minimal runtime image using OpenJDK 11 JRE
 FROM openjdk:11-jre-slim
