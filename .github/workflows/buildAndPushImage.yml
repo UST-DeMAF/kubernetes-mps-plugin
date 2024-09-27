@@ -40,6 +40,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build and push the regular image
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -48,4 +49,17 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          provenance: false
+
+      # Build and push the slim image
+      - name: Build and push slim
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-slim
+          build-args: | # Set the SLIM env variable to 1 for the build
+            SLIM=1
           provenance: false
