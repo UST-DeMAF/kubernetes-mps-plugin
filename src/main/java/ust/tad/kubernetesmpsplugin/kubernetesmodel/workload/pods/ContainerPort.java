@@ -1,4 +1,4 @@
-package ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment;
+package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods;
 
 import java.util.Objects;
 

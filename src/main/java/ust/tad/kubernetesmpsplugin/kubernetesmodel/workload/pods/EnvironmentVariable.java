@@ -1,18 +1,18 @@
-package ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment;
+package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods;
 
 import java.util.Objects;
 
-public class Label {
+public class EnvironmentVariable {
     
     private String key;
 
     private String value;
 
 
-    public Label() {
+    public EnvironmentVariable() {
     }
 
-    public Label(String key, String value) {
+    public EnvironmentVariable(String key, String value) {
         this.key = key;
         this.value = value;
     }
@@ -33,12 +33,12 @@ public class Label {
         this.value = value;
     }
 
-    public Label key(String key) {
+    public EnvironmentVariable key(String key) {
         setKey(key);
         return this;
     }
 
-    public Label value(String value) {
+    public EnvironmentVariable value(String value) {
         setValue(value);
         return this;
     }
@@ -47,11 +47,11 @@ public class Label {
     public boolean equals(Object o) {
         if (o == this)
             return true;
-        if (!(o instanceof Label)) {
+        if (!(o instanceof EnvironmentVariable)) {
             return false;
         }
-        Label label = (Label) o;
-        return Objects.equals(key, label.key) && Objects.equals(value, label.value);
+        EnvironmentVariable environmentVariable = (EnvironmentVariable) o;
+        return Objects.equals(key, environmentVariable.key) && Objects.equals(value, environmentVariable.value);
     }
 
     @Override
@@ -67,5 +67,5 @@ public class Label {
             "}";
     }
 
-
+    
 }

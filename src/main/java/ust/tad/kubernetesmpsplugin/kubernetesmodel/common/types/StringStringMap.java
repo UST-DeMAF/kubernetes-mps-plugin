@@ -1,18 +1,18 @@
-package ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment;
+package ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types;
 
 import java.util.Objects;
 
-public class EnvironmentVariable {
+public class StringStringMap {
     
     private String key;
 
     private String value;
 
 
-    public EnvironmentVariable() {
+    public StringStringMap() {
     }
 
-    public EnvironmentVariable(String key, String value) {
+    public StringStringMap(String key, String value) {
         this.key = key;
         this.value = value;
     }
@@ -33,12 +33,12 @@ public class EnvironmentVariable {
         this.value = value;
     }
 
-    public EnvironmentVariable key(String key) {
+    public StringStringMap key(String key) {
         setKey(key);
         return this;
     }
 
-    public EnvironmentVariable value(String value) {
+    public StringStringMap value(String value) {
         setValue(value);
         return this;
     }
@@ -47,11 +47,11 @@ public class EnvironmentVariable {
     public boolean equals(Object o) {
         if (o == this)
             return true;
-        if (!(o instanceof EnvironmentVariable)) {
+        if (!(o instanceof StringStringMap)) {
             return false;
         }
-        EnvironmentVariable environmentVariable = (EnvironmentVariable) o;
-        return Objects.equals(key, environmentVariable.key) && Objects.equals(value, environmentVariable.value);
+        StringStringMap label = (StringStringMap) o;
+        return Objects.equals(key, label.key) && Objects.equals(value, label.value);
     }
 
     @Override
@@ -67,5 +67,5 @@ public class EnvironmentVariable {
             "}";
     }
 
-    
+
 }

@@ -1,4 +1,7 @@
-package ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment;
+package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment;
+
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -9,20 +12,23 @@ public class KubernetesDeployment {
     private String name;
 
     private int replicas;
+    private int minReadySeconds;
+    private int revisionHistorySeconds;
+    private boolean paused;
 
-    private Set<Label> labels = new HashSet<>();
+    private Set<StringStringMap> labels = new HashSet<>();
 
-    private Set<Container> container = new HashSet<>();
+    private Set<KubernetesPodSpec> podSpecs = new HashSet<>();
 
 
     public KubernetesDeployment() {
     }
 
-    public KubernetesDeployment(String name, int replicas, Set<Label> labels, Set<Container> container) {
+    public KubernetesDeployment(String name, int replicas, Set<StringStringMap> labels, Set<KubernetesPodSpec> podSpecs) {
         this.name = name;
         this.replicas = replicas;
         this.labels = labels;
-        this.container = container;
+        this.podSpecs = podSpecs;
     }
 
     public String getName() {
@@ -41,20 +47,20 @@ public class KubernetesDeployment {
         this.replicas = replicas;
     }
 
-    public Set<Label> getLabels() {
+    public Set<StringStringMap> getLabels() {
         return this.labels;
     }
 
-    public void setLabels(Set<Label> labels) {
+    public void setLabels(Set<StringStringMap> labels) {
         this.labels = labels;
     }
 
-    public Set<Container> getContainer() {
-        return this.container;
+    public Set<KubernetesPodSpec> getPodSpecs() {
+        return this.podSpecs;
     }
 
-    public void setContainer(Set<Container> container) {
-        this.container = container;
+    public void setPodSpecs(Set<KubernetesPodSpec> podSpecs) {
+        this.podSpecs = podSpecs;
     }
 
     public KubernetesDeployment name(String name) {
@@ -67,13 +73,13 @@ public class KubernetesDeployment {
         return this;
     }
 
-    public KubernetesDeployment labels(Set<Label> labels) {
+    public KubernetesDeployment labels(Set<StringStringMap> labels) {
         setLabels(labels);
         return this;
     }
 
-    public KubernetesDeployment container(Set<Container> container) {
-        setContainer(container);
+    public KubernetesDeployment podSpecs(Set<KubernetesPodSpec> podSpecs) {
+        setPodSpecs(podSpecs);
         return this;
     }
 
@@ -85,12 +91,12 @@ public class KubernetesDeployment {
             return false;
         }
         KubernetesDeployment deployment = (KubernetesDeployment) o;
-        return Objects.equals(name, deployment.name) && replicas == deployment.replicas && Objects.equals(labels, deployment.labels) && Objects.equals(container, deployment.container);
+        return Objects.equals(name, deployment.name) && replicas == deployment.replicas && Objects.equals(labels, deployment.labels) && Objects.equals(podSpecs, deployment.podSpecs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, replicas, labels, container);
+        return Objects.hash(name, replicas, labels, podSpecs);
     }
 
     @Override
@@ -99,7 +105,7 @@ public class KubernetesDeployment {
             " name='" + getName() + "'" +
             ", replicas='" + getReplicas() + "'" +
             ", labels='" + getLabels() + "'" +
-            ", container='" + getContainer() + "'" +
+            ", podSpecs='" + getPodSpecs() + "'" +
             "}";
     }
 

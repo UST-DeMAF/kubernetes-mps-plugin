@@ -1,6 +1,6 @@
 package ust.tad.kubernetesmpsplugin.kubernetesmodel;
 
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 
 import java.util.HashSet;
@@ -55,6 +55,7 @@ public class KubernetesDeploymentModel {
         return "KubernetesDeploymentModel{" +
                 "deployments=" + deployments +
                 ", services=" + services +
+                ", podSpecs=" + podSpecs +
                 '}';
     }
 
