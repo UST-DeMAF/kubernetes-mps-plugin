@@ -40,4 +40,4 @@ WORKDIR /app
 COPY --from=build /app /app
 
 # Set the command to run the application
-CMD ["java", "-jar", "/app/target/kubernetes-mps-plugin-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "/app/target/kubernetes-mps-plugin-0.2.0-SNAPSHOT.jar"]

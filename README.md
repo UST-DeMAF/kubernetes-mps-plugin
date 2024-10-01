@@ -18,7 +18,7 @@ If you want to boot it locally nevertheless use the following commands.
 or:
 ```shell
 ./mvnw package
-java -jar target/kubernetes-plugin-0.0.1-SNAPSHOT.jar
+java -jar target/kubernetes-plugin-0.2.0-SNAPSHOT.jar
 ```
 
 When running the project locally, ensure the plugin isn't also running in a Docker container to avoid port conflicts.
