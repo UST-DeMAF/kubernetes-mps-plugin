@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public class KubernetesDeployment {
-    
+
     private String name;
 
     private int replicas;
@@ -24,7 +24,12 @@ public class KubernetesDeployment {
     public KubernetesDeployment() {
     }
 
-    public KubernetesDeployment(String name, int replicas, Set<StringStringMap> labels, Set<KubernetesPodSpec> podSpecs) {
+    public KubernetesDeployment(
+            String name,
+            int replicas,
+            Set<StringStringMap> labels,
+            Set<KubernetesPodSpec> podSpecs
+    ) {
         this.name = name;
         this.replicas = replicas;
         this.labels = labels;
@@ -63,6 +68,30 @@ public class KubernetesDeployment {
         this.podSpecs = podSpecs;
     }
 
+    public int getMinReadySeconds() {
+        return this.minReadySeconds;
+    }
+
+    public void setMinReadySeconds(int minReadySeconds) {
+        this.minReadySeconds = minReadySeconds;
+    }
+
+    public int getRevisionHistorySeconds() {
+        return this.revisionHistorySeconds;
+    }
+
+    public void setRevisionHistorySeconds(int revisionHistorySeconds) {
+        this.revisionHistorySeconds = revisionHistorySeconds;
+    }
+
+    public boolean isPaused() {
+        return this.paused;
+    }
+
+    public void setPause(boolean paused) {
+        this.paused = paused;
+    }
+
     public KubernetesDeployment name(String name) {
         setName(name);
         return this;
@@ -91,7 +120,10 @@ public class KubernetesDeployment {
             return false;
         }
         KubernetesDeployment deployment = (KubernetesDeployment) o;
-        return Objects.equals(name, deployment.name) && replicas == deployment.replicas && Objects.equals(labels, deployment.labels) && Objects.equals(podSpecs, deployment.podSpecs);
+        return Objects.equals(name, deployment.name) &&
+                replicas == deployment.replicas &&
+                Objects.equals(labels, deployment.labels) &&
+                Objects.equals(podSpecs, deployment.podSpecs);
     }
 
     @Override
@@ -102,11 +134,14 @@ public class KubernetesDeployment {
     @Override
     public String toString() {
         return "{" +
-            " name='" + getName() + "'" +
-            ", replicas='" + getReplicas() + "'" +
-            ", labels='" + getLabels() + "'" +
-            ", podSpecs='" + getPodSpecs() + "'" +
-            "}";
+                " name='" + getName() + "'" +
+                ", replicas='" + getReplicas() + "'" +
+                ", labels='" + getLabels() + "'" +
+                ", podSpecs='" + getPodSpecs() + "'" +
+                ", paused=" + isPaused() +
+                ", revisionHistorySeconds=" + getRevisionHistorySeconds() +
+                ", minReadySeconds=" + getMinReadySeconds() +
+                "}";
     }
 
 

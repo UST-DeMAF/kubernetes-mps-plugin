@@ -1,6 +1,7 @@
 package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods;
 
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.Volume;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -13,16 +14,18 @@ public class KubernetesPodSpec {
     private Set<Container> containers = new HashSet<>();
     private Set<Container> initContainers = new HashSet<>();
     private Set<StringStringMap> labels = new HashSet<>();
+    private Set<Volume> volumes = new HashSet<>();
 
     public KubernetesPodSpec() {
 
     }
 
-    public KubernetesPodSpec(String hostname, String restartPolicy, Set<Container> containers, Set<Container> initContainers) {
+    public KubernetesPodSpec(String hostname, String restartPolicy, Set<Container> containers, Set<Container> initContainers, Set<Volume> volumes) {
         this.hostname = hostname;
         this.restartPolicy = restartPolicy;
         this.containers = containers;
         this.initContainers = initContainers;
+        this.volumes = volumes;
     }
 
     public String getHostname() {
@@ -61,6 +64,10 @@ public class KubernetesPodSpec {
 
     public void setLabels(Set<StringStringMap> labels) { this.labels = labels; }
 
+    public Set<Volume> getVolumes() { return this.volumes; }
+
+    public void setVolumes(Set<Volume> volumes) { this.volumes = volumes; }
+
     @Override
     public boolean equals(Object o) {
         if (o == this)
@@ -69,12 +76,12 @@ public class KubernetesPodSpec {
             return false;
         }
         KubernetesPodSpec podSpec = (KubernetesPodSpec) o;
-        return Objects.equals(hostname, podSpec.hostname) && Objects.equals(restartPolicy, podSpec.restartPolicy) && Objects.equals(containers, podSpec.containers) && Objects.equals(initContainers, podSpec.initContainers);
+        return Objects.equals(hostname, podSpec.hostname) && Objects.equals(restartPolicy, podSpec.restartPolicy) && Objects.equals(containers, podSpec.containers) && Objects.equals(initContainers, podSpec.initContainers) && Objects.equals(volumes, podSpec.volumes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(hostname, restartPolicy, containers, initContainers);
+        return Objects.hash(hostname, restartPolicy, containers, initContainers, volumes);
     }
 
     @Override
@@ -82,8 +89,9 @@ public class KubernetesPodSpec {
         return "{" +
                 " hostname='" + getHostname() + "'" +
                 ", restartPolicy='" + getRestartPolicy() + "'" +
-                ", containers='" + getContainers() + "'" +
-                ", initContainers='" + getInitContainers() + "'" +
+                ", containers=" + getContainers() +
+                ", initContainers=" + getInitContainers() +
+                ", volumes=" + getVolumes() +
                 "}";
     }
 }

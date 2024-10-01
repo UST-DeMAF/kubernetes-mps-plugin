@@ -16,7 +16,7 @@ public class IngressBackend {
     }
 
     public String getServiceName() {
-        return this.serviceName
+        return this.serviceName;
     }
 
     public void setServiceName(String serviceName) {

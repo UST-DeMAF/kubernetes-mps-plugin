@@ -18,12 +18,12 @@ public class KubernetesService {
     private String externalTrafficPolicy;
     private String internalTrafficPolicy;
     private int healthCheckNodePort;
-    private List<ServicePort> servicePorts;
-    private List<StringStringMap> selectors;
-    private List<String> ipFamilies;
-    private List<String> clusterIPs;
-    private List<String> externalIPs;
-    private List<String> loadBalancerSourceRanges;
+    private Set<ServicePort> servicePorts;
+    private Set<StringStringMap> selectors;
+    private Set<String> ipFamilies;
+    private Set<String> clusterIPs;
+    private Set<String> externalIPs;
+    private Set<String> loadBalancerSourceRanges;
 
     public KubernetesService() {}
 
@@ -38,12 +38,12 @@ public class KubernetesService {
             String externalTrafficPolicy,
             String internalTrafficPolicy,
             int healthCheckNodePort,
-            List<ServicePort> servicePorts,
-            List<StringStringMap> selectors,
-            List<String> ipFamilies,
-            List<String> clusterIPs,
-            List<String> externalIPs,
-            List<String> loadBalancerSourceRanges
+            Set<ServicePort> servicePorts,
+            Set<StringStringMap> selectors,
+            Set<String> ipFamilies,
+            Set<String> clusterIPs,
+            Set<String> externalIPs,
+            Set<String> loadBalancerSourceRanges
     ) {
         this.name = name;
         this.type = type;
@@ -143,51 +143,51 @@ public class KubernetesService {
         this.healthCheckNodePort = healthCheckNodePort;
     }
 
-    public List<ServicePort> getServicePorts() {
+    public Set<ServicePort> getServicePorts() {
         return servicePorts;
     }
 
-    public void setServicePorts(List<ServicePort> servicePorts) {
+    public void setServicePorts(Set<ServicePort> servicePorts) {
         this.servicePorts = servicePorts;
     }
 
-    public List<StringStringMap> getSelectors() {
+    public Set<StringStringMap> getSelectors() {
         return selectors;
     }
 
-    public void setSelectors(List<StringStringMap> selectors) {
+    public void setSelectors(Set<StringStringMap> selectors) {
         this.selectors = selectors;
     }
 
-    public List<String> getIpFamilies() {
+    public Set<String> getIpFamilies() {
         return ipFamilies;
     }
 
-    public void setIpFamilies(List<String> ipFamilies) {
+    public void setIpFamilies(Set<String> ipFamilies) {
         this.ipFamilies = ipFamilies;
     }
 
-    public List<String> getClusterIPs() {
+    public Set<String> getClusterIPs() {
         return clusterIPs;
     }
 
-    public void setClusterIPs(List<String> clusterIPs) {
+    public void setClusterIPs(Set<String> clusterIPs) {
         this.clusterIPs = clusterIPs;
     }
 
-    public List<String> getExternalIPs() {
+    public Set<String> getExternalIPs() {
         return externalIPs;
     }
 
-    public void setExternalIPs(List<String> externalIPs) {
+    public void setExternalIPs(Set<String> externalIPs) {
         this.externalIPs = externalIPs;
     }
 
-    public List<String> getLoadBalancerSourceRanges() {
+    public Set<String> getLoadBalancerSourceRanges() {
         return loadBalancerSourceRanges;
     }
 
-    public void setLoadBalancerSourceRanges(List<String> loadBalancerSourceRanges) {
+    public void setLoadBalancerSourceRanges(Set<String> loadBalancerSourceRanges) {
         this.loadBalancerSourceRanges = loadBalancerSourceRanges;
     }
 
@@ -242,32 +242,32 @@ public class KubernetesService {
         return this;
     }
 
-    public KubernetesService servicePorts(List<ServicePort> servicePorts) {
+    public KubernetesService servicePorts(Set<ServicePort> servicePorts) {
         setServicePorts(servicePorts);
         return this;
     }
 
-    public KubernetesService selectors(List<StringStringMap> selectors) {
+    public KubernetesService selectors(Set<StringStringMap> selectors) {
         setSelectors(selectors);
         return this;
     }
 
-    public KubernetesService ipFamilies(List<String> ipFamilies) {
+    public KubernetesService ipFamilies(Set<String> ipFamilies) {
         setIpFamilies(ipFamilies);
         return this;
     }
 
-    public KubernetesService clusterIPs(List<String> clusterIPs) {
+    public KubernetesService clusterIPs(Set<String> clusterIPs) {
         setClusterIPs(clusterIPs);
         return this;
     }
 
-    public KubernetesService externalIPs(List<String> externalIPs) {
+    public KubernetesService externalIPs(Set<String> externalIPs) {
         setExternalIPs(externalIPs);
         return this;
     }
 
-    public KubernetesService loadBalancerSourceRanges(List<String> loadBalancerSourceRanges) {
+    public KubernetesService loadBalancerSourceRanges(Set<String> loadBalancerSourceRanges) {
         setLoadBalancerSourceRanges(loadBalancerSourceRanges);
         return this;
     }

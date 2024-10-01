@@ -17,17 +17,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import ust.tad.kubernetesmpsplugin.analysis.kubernetesparser.*;
 import ust.tad.kubernetesmpsplugin.analysistask.AnalysisTaskResponseSender;
 import ust.tad.kubernetesmpsplugin.analysistask.Location;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.Container;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.ContainerPort;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.EnvironmentVariable;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.Label;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.ConfigMap;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.PersistentVolumeClaim;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.ingress.KubernetesIngress;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.Container;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.ContainerPort;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.EnvironmentVariable;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.Selector;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.ServicePort;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
 import ust.tad.kubernetesmpsplugin.models.ModelsService;
 import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
@@ -59,8 +64,11 @@ public class AnalysisService {
     private Set<Integer> newEmbeddedDeploymentModelIndexes = new HashSet<>();
 
     private Set<KubernetesDeployment> deployments = new HashSet<>();
-
     private Set<KubernetesService> services = new HashSet<>();
+    private Set<KubernetesPodSpec> pods = new HashSet<>();
+    private Set<KubernetesIngress> ingresses = new HashSet<>();
+    private Set<PersistentVolumeClaim> persistentVolumeClaims = new HashSet<>();
+    private Set<ConfigMap> configMaps = new HashSet<>();
 
     /**
      * Start the analysis of the deployment model.
@@ -201,12 +209,18 @@ public class AnalysisService {
                 }
                 switch (kind) {                    
                     case "Service":                        
-                        lines.addAll(createService(startLineNumber, readInLines));
+                        lines.addAll(ServiceParser.parseService(startLineNumber, readInLines, services));
                         break;
                     case "StatefulSet":
                     case "Deployment":
-                        lines.addAll(createDeployment(startLineNumber, readInLines));
-                        break;               
+                        lines.addAll(DeploymentParser.parseDeployment(startLineNumber, readInLines, deployments));
+                        break;
+                    case "PersistentVolumeClaim":
+                        lines.addAll(PersistentVolumeClaimParser.parsePersistentVolumeClaim(startLineNumber, readInLines, persistentVolumeClaims));
+                    case "ConfigMap":
+                        lines.addAll(ConfigMapParser.parseConfigMap(startLineNumber, readInLines, configMaps));
+                    case "Ingress":
+                        lines.addAll(IngressParser.parseIngress(startLineNumber, readInLines, ingresses));
                     default:
                         lines.addAll(createLinesForUnknownType(lineNumber, readInLines));
                         break;
@@ -229,325 +243,4 @@ public class AnalysisService {
         }
         return lines;
     }
-
-    private List<Line> createService(int lineNumber, List<String> readInLines) throws InvalidAnnotationException {
-        List<Line> lines = new ArrayList<>();
-        KubernetesService kubernetesService = new KubernetesService();
-        ListIterator<String> linesIterator = readInLines.listIterator();
-
-        while (linesIterator.hasNext()) {
-            String currentLine = linesIterator.next();
-            if (currentLine.startsWith("metadata:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-                while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
-                    lineNumber++;
-                    if (currentLine.trim().startsWith("labels:")) {
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && linesIterator.next().startsWith("    ")) {
-                            lineNumber++;
-                            lines.add(new Line(lineNumber, 1D, true));
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else if (currentLine.trim().startsWith("name:")) {
-                        String name = currentLine.split("name:")[1].trim();
-                        kubernetesService.setName(name);
-                        lines.add(new Line(lineNumber, 1D, true));
-                    } else if (currentLine.trim().startsWith("#")) {
-                        continue;
-                    }
-                    else {
-                        lines.add(new Line(lineNumber, 0D, true));
-                    }
-                }
-                if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
-                }
-            } else if (currentLine.startsWith("spec:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-                while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
-                    lineNumber++;
-                    if (currentLine.trim().startsWith("ports:")) { 
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
-                            ServicePort servicePort = new ServicePort();
-                            currentLine = currentLine.replaceFirst("-", " ");
-                            int numberOfWhitespaces = currentLine.length() - currentLine.stripLeading().length();
-                            String leadingWhiteSpaces = currentLine.substring(0, numberOfWhitespaces);
-                            while(currentLine.startsWith(leadingWhiteSpaces)) {
-                                lineNumber++;
-                                String[] lineSplit = currentLine.split(":");
-                                if (currentLine.trim().startsWith("name:")) {
-                                    lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setName(lineSplit[1].trim());
-                                } else if (currentLine.trim().startsWith("port:")) {
-                                    lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setPort(Integer.parseInt(lineSplit[1].trim()));
-                                } else if (currentLine.trim().startsWith("targetPort:")) {
-                                    lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setTargetPort(lineSplit[1].trim());                                    
-                                } else {
-                                    lines.add(new Line(lineNumber, 0D, true));
-                                }
-
-                                if (linesIterator.hasNext()) {
-                                    currentLine = linesIterator.next();
-                                } else {
-                                    break;
-                                }
-                            }
-                            if (linesIterator.hasNext()) {
-                                linesIterator.previous();                                
-                            }
-                            Set<ServicePort> servicePorts = kubernetesService.getServicePorts();
-                            servicePorts.add(servicePort);
-                            kubernetesService.setServicePorts(servicePorts);
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else if (currentLine.trim().startsWith("selector:")) {
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("    ")) {
-                            lineNumber++;
-                            String[] lineSplit = currentLine.split(":");
-                            Selector selector = new Selector(lineSplit[0].trim(), lineSplit[1].trim());
-                            Set<Selector> selectors = kubernetesService.getSelectors();
-                            selectors.add(selector);
-                            kubernetesService.setSelectors(selectors);
-                            lines.add(new Line(lineNumber, 1D, true));
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else {
-                        lines.add(new Line(lineNumber, 0D, true));
-                    }
-                }
-                if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
-                }
-            } else if (currentLine.startsWith("kind:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-            } else {
-                lines.add(new Line(lineNumber, 0D, true));
-            }
-            lineNumber++;
-        }
-        this.services.add(kubernetesService);
-        return lines;
-    }
-
-    private List<Line> createDeployment(int lineNumber, List<String> readInLines) throws InvalidAnnotationException {
-        List<Line> lines = new ArrayList<>();
-        KubernetesDeployment kubernetesDeployment  = new KubernetesDeployment();
-        ListIterator<String> linesIterator = readInLines.listIterator();
-
-        while (linesIterator.hasNext()) {
-            String currentLine = linesIterator.next();
-            if (currentLine.startsWith("metadata:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-                while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
-                    lineNumber++;
-                    if (currentLine.trim().startsWith("labels:")) {
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("    ")) {
-                            lineNumber++;
-                            String[] lineSplit = currentLine.split(":");
-                            Label label = new Label(lineSplit[0].trim(), lineSplit[1].trim());
-                            Set<Label> labels = kubernetesDeployment.getLabels();
-                            labels.add(label);
-                            kubernetesDeployment.setLabels(labels);
-                            lines.add(new Line(lineNumber, 1D, true));
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else if (currentLine.trim().startsWith("name:")) {
-                        String name = currentLine.split("name:")[1].trim();
-                        kubernetesDeployment.setName(name);
-                        lines.add(new Line(lineNumber, 1D, true));
-                    } else if (currentLine.trim().startsWith("#")) {
-                        continue;
-                    }
-                    else {
-                        lines.add(new Line(lineNumber, 0D, true));
-                    }
-                }
-                if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
-                }
-            } else if (currentLine.startsWith("spec:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-                while (linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("  ")) {
-                    lineNumber++;                    
-                    if (currentLine.trim().startsWith("replicas:")) { 
-                        lines.add(new Line(lineNumber, 1D, true));
-                        int replicas = Integer.parseInt(currentLine.split("replicas:")[1].trim());
-                        kubernetesDeployment.setReplicas(replicas);
-                    } else if (currentLine.trim().startsWith("selector:")) {
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && linesIterator.next().startsWith("    ")) {
-                            lineNumber++;
-                            lines.add(new Line(lineNumber, 1D, true));
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else if (currentLine.trim().startsWith("template:")) {
-                        lines.add(new Line(lineNumber, 1D, true));
-                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("    ")) {
-                            lineNumber++;
-                            if (currentLine.trim().startsWith("metadata:")) {
-                                lines.add(new Line(lineNumber, 1D, true));
-                                while(linesIterator.hasNext() && linesIterator.next().startsWith("      ")) {
-                                    lineNumber++;
-                                    lines.add(new Line(lineNumber, 1D, true));
-                                }
-                                if (linesIterator.hasNext()) {
-                                    linesIterator.previous();                                
-                                }
-                            } else if (currentLine.trim().startsWith("spec:")) {
-                                lines.add(new Line(lineNumber, 1D, true));
-                                while(linesIterator.hasNext() && (currentLine = linesIterator.next()).startsWith("      ")) {
-                                    lineNumber++;
-                                    if (currentLine.trim().startsWith("containers:")) {
-                                        lines.add(new Line(lineNumber, 1D, true));
-                                        while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
-                                            Container container = new Container();
-                                            currentLine = currentLine.replaceFirst("-", " ");
-                                            int numberOfWhitespaces = currentLine.length() - currentLine.stripLeading().length();
-                                            String leadingWhiteSpaces = currentLine.substring(0, numberOfWhitespaces);
-                                            while(currentLine.startsWith(leadingWhiteSpaces)) {
-                                                lineNumber++;
-                                                if (currentLine.trim().startsWith("name:")) {
-                                                    lines.add(new Line(lineNumber, 1D, true));
-                                                    container.setName(currentLine.split("name:")[1].trim());
-                                                } else if (currentLine.trim().startsWith("image:")) {
-                                                    lines.add(new Line(lineNumber, 1D, true));
-                                                    container.setImage(currentLine.split("image:")[1].trim());
-                                                } else if (currentLine.trim().startsWith("ports:")) {
-                                                    lines.add(new Line(lineNumber, 1D, true));
-                                                    Set<ContainerPort> containerPorts = new HashSet<>();
-                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
-                                                        ContainerPort containerPort = new ContainerPort();
-                                                        currentLine = currentLine.replaceFirst("-", " ");
-                                                        int numberOfWhitespacesPort = currentLine.length() - currentLine.stripLeading().length();
-                                                        String leadingWhiteSpacesPort = currentLine.substring(0, numberOfWhitespacesPort);
-                                                        while(currentLine.startsWith(leadingWhiteSpacesPort)) {
-                                                            lineNumber++;
-                                                            String[] lineSplitPort = currentLine.split(":");
-                                                            if (currentLine.trim().startsWith("name:")) {
-                                                                lines.add(new Line(lineNumber, 1D, true));
-                                                                containerPort.setName(lineSplitPort[1].trim());
-                                                            } else if (currentLine.trim().startsWith("containerPort:")) {
-                                                                lines.add(new Line(lineNumber, 1D, true));
-                                                                containerPort.setPort(Integer.parseInt(lineSplitPort[1].trim()));
-                                                            } else {
-                                                                lines.add(new Line(lineNumber, 0D, true));
-                                                            }                            
-                                                            if (linesIterator.hasNext()) {
-                                                                currentLine = linesIterator.next();
-                                                            } else {
-                                                                break;
-                                                            }
-                                                        }
-                                                        if (linesIterator.hasNext()) {
-                                                            linesIterator.previous();                                
-                                                        }
-                                                        containerPorts.add(containerPort);
-                                                    }
-                                                    if (linesIterator.hasNext()) {
-                                                        linesIterator.previous();                                
-                                                    }
-                                                    container.setContainerPorts(containerPorts);                                    
-                                                } else if (currentLine.trim().startsWith("env:")) {
-                                                    lines.add(new Line(lineNumber, 1D, true));
-                                                    Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-                                                    while(linesIterator.hasNext() && (currentLine = linesIterator.next()).matches("^\\s*-.*")) {          
-                                                        EnvironmentVariable environmentVariable = new EnvironmentVariable();
-                                                        currentLine = currentLine.replaceFirst("-", " ");
-                                                        int numberOfWhitespacesEnv = currentLine.length() - currentLine.stripLeading().length();
-                                                        String leadingWhiteSpacesEnv = currentLine.substring(0, numberOfWhitespacesEnv);
-                                                        while(currentLine.startsWith(leadingWhiteSpacesEnv)) {
-                                                            lineNumber++;
-                                                            if (currentLine.trim().startsWith("name:")) {
-                                                                lines.add(new Line(lineNumber, 1D, true));
-                                                                environmentVariable.setKey(currentLine.split("name:")[1].trim());
-                                                            } else if (currentLine.trim().startsWith("value:")) {
-                                                                lines.add(new Line(lineNumber, 1D, true));
-                                                                environmentVariable.setValue(currentLine.split("value:")[1].trim());
-                                                            } else {
-                                                                lines.add(new Line(lineNumber, 0D, true));
-                                                            }                            
-                                                            if (linesIterator.hasNext()) {
-                                                                currentLine = linesIterator.next();
-                                                            } else {
-                                                                break;
-                                                            }
-                                                        }
-                                                        if (linesIterator.hasNext()) {
-                                                            linesIterator.previous();                                
-                                                        }
-                                                        if (environmentVariable.getKey() != null && environmentVariable.getValue() != null) {
-                                                            environmentVariables.add(environmentVariable);
-                                                        }
-                                                    }
-                                                    if (linesIterator.hasNext()) {
-                                                        linesIterator.previous();                                
-                                                    }
-                                                    container.setEnvironmentVariables(environmentVariables);                                  
-                                                } else {
-                                                    lines.add(new Line(lineNumber, 0D, true));
-                                                }                
-                                                if (linesIterator.hasNext()) {
-                                                    currentLine = linesIterator.next();
-                                                } else {
-                                                    break;
-                                                }
-                                            }
-                                            if (linesIterator.hasNext()) {
-                                                linesIterator.previous();                                
-                                            }
-                                            Set<Container> containerSet = kubernetesDeployment.getContainer();
-                                            containerSet.add(container);
-                                            kubernetesDeployment.setContainer(containerSet);
-                                        }
-                                        if (linesIterator.hasNext()) {
-                                            linesIterator.previous();                                
-                                        }
-                                    } else {
-                                        lines.add(new Line(lineNumber, 0D, true));
-                                    }
-                                }
-                                if (linesIterator.hasNext()) {
-                                    linesIterator.previous();                                
-                                }
-                            } else {                                
-                                lines.add(new Line(lineNumber, 0D, true));
-                            }
-                        }
-                        if (linesIterator.hasNext()) {
-                            linesIterator.previous();                                
-                        }
-                    } else {
-                        lines.add(new Line(lineNumber, 0D, true));
-                    }
-                }
-                if (linesIterator.hasNext()) {
-                    linesIterator.previous();                                
-                }
-            }else if (currentLine.startsWith("kind:")) {
-                lines.add(new Line(lineNumber, 1D, true));
-            } else {
-                lines.add(new Line(lineNumber, 0D, true));
-            }            
-            lineNumber++;
-        }
-        this.deployments.add(kubernetesDeployment);
-        return lines;
-    }
-
-    
 }
