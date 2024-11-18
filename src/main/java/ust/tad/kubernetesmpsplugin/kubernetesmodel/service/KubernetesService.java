@@ -2,9 +2,7 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.service;
 
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
 
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.List;
 import java.util.Set;
 
 public class KubernetesService {
@@ -191,7 +189,6 @@ public class KubernetesService {
         this.loadBalancerSourceRanges = loadBalancerSourceRanges;
     }
 
-
     public KubernetesService name(String name) {
         setName(name);
         return this;
@@ -321,6 +318,4 @@ public class KubernetesService {
                 ", loadBalancerSourceRanges=" + loadBalancerSourceRanges +
                 "}";
     }
-
-    
 }
