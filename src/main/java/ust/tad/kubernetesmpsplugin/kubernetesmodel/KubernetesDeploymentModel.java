@@ -1,10 +1,10 @@
 package ust.tad.kubernetesmpsplugin.kubernetesmodel;
 
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 
 public class KubernetesDeploymentModel {
 
@@ -46,16 +46,14 @@ public class KubernetesDeploymentModel {
 
   @Override
   public int hashCode() {
-    return Objects.hash(deployments, services);
+      return Objects.hash(deployments, services);
   }
 
   @Override
   public String toString() {
-    return "KubernetesDeploymentModel{"
-        + "deployments="
-        + deployments
-        + ", services="
-        + services
-        + '}';
+      return "KubernetesDeploymentModel{" +
+              "deployments=" + deployments +
+              ", services=" + services +
+              '}';
   }
 }

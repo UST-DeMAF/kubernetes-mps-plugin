@@ -4,9 +4,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.deployment.KubernetesDeployment;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.Selector;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.models.tadm.*;
 
 @Service
@@ -58,7 +58,7 @@ public class RelationFinderService {
     Map<KubernetesService, KubernetesDeployment> matchingServicesAndDeployments = new HashMap<>();
     for (KubernetesDeployment deployment : deployments) {
       for (KubernetesService service : services) {
-        for (Selector selector : service.getSelectors()) {
+        for (StringStringMap selector : service.getSelectors()) {
           if (deployment.getLabels().stream()
               .anyMatch(
                   label ->
