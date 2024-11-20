@@ -3,11 +3,8 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods;
 import java.util.Objects;
 
 public class EnvironmentVariable {
-
   private String key;
-
   private String value;
-
   public EnvironmentVariable() {}
 
   public EnvironmentVariable(String key, String value) {

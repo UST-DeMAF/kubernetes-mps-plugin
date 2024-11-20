@@ -9,7 +9,6 @@ public class EphemeralContainer extends Container {
 
     public EphemeralContainer() {}
 
-
     public EphemeralContainer(
             String name,
             String image,

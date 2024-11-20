@@ -3,11 +3,8 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.service;
 import java.util.Objects;
 
 public class ServicePort {
-
   private String name;
-
   private int port;
-
   private String targetPort;
 
   public ServicePort() {}

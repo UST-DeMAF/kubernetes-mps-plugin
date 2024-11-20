@@ -10,15 +10,12 @@ import java.util.Set;
 public class KubernetesPodSpec {
     private String hostname;
     private String restartPolicy;
-
     private Set<Container> containers = new HashSet<>();
     private Set<Container> initContainers = new HashSet<>();
     private Set<StringStringMap> labels = new HashSet<>();
     private Set<Volume> volumes = new HashSet<>();
 
-    public KubernetesPodSpec() {
-
-    }
+    public KubernetesPodSpec() {}
 
     public KubernetesPodSpec(String hostname, String restartPolicy, Set<Container> containers, Set<Container> initContainers, Set<Volume> volumes) {
         this.hostname = hostname;

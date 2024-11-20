@@ -8,21 +8,15 @@ import java.util.Objects;
 import java.util.Set;
 
 public class KubernetesDeployment {
-
     private String name;
-
     private int replicas;
     private int minReadySeconds;
     private int revisionHistorySeconds;
     private boolean paused;
-
     private Set<StringStringMap> labels = new HashSet<>();
-
     private Set<KubernetesPodSpec> podSpecs = new HashSet<>();
 
-
-    public KubernetesDeployment() {
-    }
+    public KubernetesDeployment() {}
 
     public KubernetesDeployment(
             String name,

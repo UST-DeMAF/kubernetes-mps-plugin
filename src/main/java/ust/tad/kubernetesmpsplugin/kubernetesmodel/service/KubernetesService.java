@@ -2,6 +2,7 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.service;
 
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -16,8 +17,8 @@ public class KubernetesService {
     private String externalTrafficPolicy;
     private String internalTrafficPolicy;
     private int healthCheckNodePort;
-    private Set<ServicePort> servicePorts;
-    private Set<StringStringMap> selectors;
+    private Set<ServicePort> servicePorts = new HashSet<>();
+    private Set<StringStringMap> selectors = new HashSet<>();
     private Set<String> ipFamilies;
     private Set<String> clusterIPs;
     private Set<String> externalIPs;

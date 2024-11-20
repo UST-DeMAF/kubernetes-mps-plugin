@@ -3,9 +3,7 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods;
 import java.util.Objects;
 
 public class ContainerPort {
-
   private String name;
-
   private int port;
 
   public ContainerPort() {}

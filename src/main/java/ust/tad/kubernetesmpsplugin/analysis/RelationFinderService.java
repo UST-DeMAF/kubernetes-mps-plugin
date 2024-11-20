@@ -14,6 +14,9 @@ public class RelationFinderService {
 
   private final String[] PROPERTY_KEYWORDS = {"connect", "host", "server", "url", "uri"};
 
+  private final Set<String> KUBERNETES_CLUSTER_TYPE_NAMES = Set.of("kubernetes_cluster",
+          "azurerm_kubernetes_cluster", "aws_eks_cluster", "google_container_cluster");
+
   private RelationType connectsToRelationType = new RelationType();
   private RelationType hostedOnRelationType = new RelationType();
 
@@ -38,9 +41,9 @@ public class RelationFinderService {
     for (Component newComponent : newComponents) {
       newRelations.addAll(
           findRelationsInProperties(tadm, newComponent, matchingServicesAndDeployments));
-      Optional<Relation> relationToContainerRuntime =
-          findRelationToContainerRuntime(tadm, newComponent);
-      relationToContainerRuntime.ifPresent(newRelations::add);
+      Optional<Relation> relationToKubernetesCluster =
+          createRelationToKubernetesCluster(tadm, newComponent);
+      relationToKubernetesCluster.ifPresent(newRelations::add);
     }
     return newRelations;
   }
@@ -74,25 +77,25 @@ public class RelationFinderService {
 
   /**
    * Finds and creates an EDMM relation of type "hosted on" between a newly created component and an
-   * already existing component of type "container runtime".
+   * already existing KubernetesCluster component.
    *
    * @param tadm
    * @param newComponent
    * @return
    */
-  private Optional<Relation> findRelationToContainerRuntime(
+  private Optional<Relation> createRelationToKubernetesCluster(
       TechnologyAgnosticDeploymentModel tadm, Component newComponent) {
-    Optional<ComponentType> containerRuntimeComponentTypeOpt =
+    Optional<ComponentType> kubernetesClusterComponentTypeOpt =
         tadm.getComponentTypes().stream()
-            .filter(componentType -> componentType.getName().equals("container_runtime"))
+            .filter(componentType -> KUBERNETES_CLUSTER_TYPE_NAMES.contains(componentType.getName()))
             .findFirst();
-    if (containerRuntimeComponentTypeOpt.isPresent()) {
-      Optional<Component> containerRuntimeComponentOpt =
+    if (kubernetesClusterComponentTypeOpt.isPresent()) {
+      Optional<Component> kubernetesClusterComponentOpt =
           tadm.getComponents().stream()
               .filter(
-                  component -> component.getType().equals(containerRuntimeComponentTypeOpt.get()))
+                  component -> component.getType().equals(kubernetesClusterComponentTypeOpt.get()))
               .findFirst();
-      if (containerRuntimeComponentOpt.isPresent()) {
+      if (kubernetesClusterComponentOpt.isPresent()) {
         Relation relation = new Relation();
         relation.setType(this.hostedOnRelationType);
         relation.setName(
@@ -100,10 +103,10 @@ public class RelationFinderService {
                 + "_"
                 + this.hostedOnRelationType.getName()
                 + "_"
-                + containerRuntimeComponentOpt.get().getName());
+                + kubernetesClusterComponentOpt.get().getName());
         try {
           relation.setSource(newComponent);
-          relation.setTarget(containerRuntimeComponentOpt.get());
+          relation.setTarget(kubernetesClusterComponentOpt.get());
         } catch (InvalidRelationException e) {
           return Optional.empty();
         }

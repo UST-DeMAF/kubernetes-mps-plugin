@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.Set;
 
 public class Container {
-
     private String name;
     private String image;
     private String imagePullPolicy;
@@ -18,8 +17,7 @@ public class Container {
     private Set<EnvironmentVariable> environmentVariables = new HashSet<>();
     private Set<VolumeMount> volumeMounts = new HashSet<>();
 
-    public Container() {
-    }
+    public Container() {}
 
     public Container(
             String name,
