@@ -10,13 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.common.types.StringStringMap;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.PersistentVolumeClaim;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.Volume;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.ServicePort;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.Container;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.ContainerPort;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.EnvironmentVariable;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.*;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
 
 @SpringBootTest
@@ -38,6 +37,9 @@ public class TransformationServiceTest {
     StringStringMap label = new StringStringMap("app", "dummyApp");
     ContainerPort containerPort = new ContainerPort("containerPort", 8080);
     EnvironmentVariable environmentVariable = new EnvironmentVariable("dummyEnv", "dummyEnvVal");
+    VolumeMount volumeMount = new VolumeMount();
+    volumeMount.setMountPath("/dir");
+    volumeMount.setName("storageVolume");
     Container dummyContainer =
             new Container(
                     "dummyContainer",
@@ -48,12 +50,13 @@ public class TransformationServiceTest {
                     "/",
                     Set.of(containerPort),
                     Set.of(environmentVariable),
-                    Set.of());
+                    Set.of(volumeMount));
+    Volume volume = new Volume("storageVolume", "pvcName", true);
     KubernetesPodSpec pod = new KubernetesPodSpec("testPod",
             "never",
             Set.of(dummyContainer),
             Set.of(),
-            Set.of());
+            Set.of(volume));
     KubernetesDeployment dummyDeployment =
             new KubernetesDeployment("dummyDeployment", 3, Set.of(label), Set.of(pod));
     KubernetesDeployment dummyDeploymentTwo =
@@ -68,7 +71,10 @@ public class TransformationServiceTest {
                     Set.of(servicePort), Set.of(selector),
                     Set.of(), Set.of(), Set.of(), Set.of());
 
+    PersistentVolumeClaim pvc = new PersistentVolumeClaim("pvcName", "", "1Gi","3" );
+
     return new KubernetesDeploymentModel(
-            Set.of(dummyDeployment, dummyDeploymentTwo), Set.of(dummyService));
+            Set.of(dummyDeployment, dummyDeploymentTwo), Set.of(dummyService), Set.of(), Set.of(),
+            Set.of(pvc), Set.of());
   }
 }

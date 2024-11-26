@@ -23,7 +23,7 @@ public class PodSpecParser extends BaseParser {
             // i.e. when passing PodSpec from Deployment anything regarded PodSpec is indented by at least 2 spaces
             if (indentation < 0) indentation = countLeadingWhitespaces(currentLine);
 
-            // When called from i.e. deployment, the Pod Template is  indented by 2. If currentLine is less indented
+            // When called from i.e. deployment, the Pod Template is indented by 2. If currentLine is less indented
             // we know that we finished analyzing everything belonging to the pod specification
             if (countLeadingWhitespaces(currentLine) < indentation) break;
             if (currentLine.trim().startsWith("metadata:")) {
@@ -55,27 +55,32 @@ public class PodSpecParser extends BaseParser {
                     lineNumber++;
                     if (currentLine.trim().startsWith("containers:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
+                        int containerLeadingSpaces = countLeadingWhitespaces(currentLine);
+                        while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= containerLeadingSpaces) {
                             lineNumber++;
                             Container container = new Container();
                             currentLine = currentLine.replaceFirst("-", " ");
-                            while (countLeadingWhitespaces(currentLine) >= indentation + 4) {
+                            while (countLeadingWhitespaces(currentLine) > containerLeadingSpaces) {
                                 if (currentLine.trim().startsWith("name:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     container.setName(currentLine.split(":")[1].trim());
                                 } else if (currentLine.trim().startsWith("image:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setImage(currentLine.split(":")[1].trim());
+                                    container.setImage(currentLine.split("image:")[1].trim());
                                 } else if (currentLine.trim().startsWith("imagePullPolicy:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setImage(currentLine.split(":")[1].trim());
+                                    container.setImagePullPolicy(currentLine.split(":")[1].trim());
                                 } else if (currentLine.trim().startsWith("ports:")) {
+                                    int portsLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
                                     Set<ContainerPort> containerPorts = new HashSet<>();
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
+                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= portsLeadingWhitespaces) {
                                         ContainerPort containerPort = new ContainerPort();
                                         currentLine = currentLine.replaceFirst("-", " ");
-                                        while (countLeadingWhitespaces(currentLine) >= indentation + 6) {
+                                        while (countLeadingWhitespaces(currentLine) > portsLeadingWhitespaces) {
+                                            if (currentLine.trim().startsWith("-")) {
+                                                break;
+                                            }
                                             lineNumber++;
                                             String[] lineSplitPort = currentLine.split(":");
                                             if (currentLine.trim().startsWith("name:")) {
@@ -103,12 +108,16 @@ public class PodSpecParser extends BaseParser {
                                     }
                                     container.setContainerPorts(containerPorts);
                                 } else if (currentLine.trim().startsWith("env:")) {
+                                    int envLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
                                     Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
+                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= envLeadingWhitespaces) {
                                         EnvironmentVariable environmentVariable = new EnvironmentVariable();
                                         currentLine = currentLine.replaceFirst("-", " ");
-                                        while (countLeadingWhitespaces(currentLine) >= indentation + 6) {
+                                        while (countLeadingWhitespaces(currentLine) > envLeadingWhitespaces) {
+                                            if (currentLine.trim().startsWith("-")) {
+                                                break;
+                                            }
                                             lineNumber++;
                                             if (currentLine.trim().startsWith("name:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
@@ -140,43 +149,68 @@ public class PodSpecParser extends BaseParser {
                                     while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
                                         lineNumber++;
                                         lines.add(new Line(lineNumber, 1D, true));
-                                        container.getArgs().add(currentLine.trim().replace("-", ""));
+                                        container.getArgs().add(currentLine.trim().replaceFirst("-", ""));
                                     }
+                                    if (iterator.hasNext()) iterator.previous();
                                 } else if (currentLine.trim().startsWith("command:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
                                         lineNumber++;
                                         lines.add(new Line(lineNumber, 1D, true));
-                                        container.getCommand().add(currentLine.trim().replace("-", ""));
+                                        container.getCommand().add(currentLine.trim().replaceFirst("-", ""));
                                     }
+                                    if (iterator.hasNext()) iterator.previous();
                                 } else if (currentLine.trim().startsWith("volumeMounts:")) {
+                                    int volumeMountsLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    while (iterator.hasNext() && countLeadingWhitespaces((currentLine = iterator.next()).replace("-", " ")) >= indentation + 6) {
-                                        lineNumber++;
+                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= volumeMountsLeadingWhitespaces) {
                                         VolumeMount volumeMount = new VolumeMount();
-                                        if (currentLine.trim().startsWith("mountPath:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setMountPath(currentLine.trim().split(":")[1]);
-                                        } else if (currentLine.trim().startsWith("name:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setName(currentLine.trim().split(":")[1]);
-                                        } else if (currentLine.trim().startsWith("readOnly:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setReadOnly(Boolean.parseBoolean((currentLine.trim().split(":")[1])));
-                                        } else if (currentLine.trim().startsWith("subPath:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setSubPath(currentLine.trim().split(":")[1]);
-                                        } else if (currentLine.trim().startsWith("subPathExpr:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setSubPathExpr(currentLine.trim().split(":")[1]);
-                                        } else if (currentLine.trim().startsWith("mountPropagation:")) {
-                                            lines.add(new Line(lineNumber, 1D, true));
-                                            volumeMount.setMountPropagation(currentLine.trim().split(":")[1]);
-                                        } else {
-                                            lines.add(new Line(lineNumber, 0D, true));
+                                        currentLine = currentLine.replaceFirst("-", " ");
+                                        while (countLeadingWhitespaces(currentLine) > volumeMountsLeadingWhitespaces) {
+                                            if (currentLine.trim().startsWith("-")) {
+                                                break;
+                                            }
+                                            lineNumber++;
+                                            if (currentLine.trim().startsWith("mountPath:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                volumeMount.setMountPath(currentLine.trim().split(":")[1].trim());
+                                            } else if (currentLine.trim().startsWith("name:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                volumeMount.setName(currentLine.trim().split(":")[1].trim());
+                                            } else if (currentLine.trim().startsWith("readOnly:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                volumeMount.setReadOnly(Boolean.parseBoolean((currentLine.trim().split(":")[1].trim())));
+                                            } else if (currentLine.trim().startsWith("subPath:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                String[] currentLineSplit = currentLine.trim().split(":");
+                                                if (currentLineSplit.length > 1) {
+                                                    volumeMount.setSubPath(currentLineSplit[1]);
+                                                }
+                                            } else if (currentLine.trim().startsWith("subPathExpr:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                String[] currentLineSplit = currentLine.trim().split(":");
+                                                if (currentLineSplit.length > 1) {
+                                                    volumeMount.setSubPathExpr(currentLineSplit[1]);
+                                                }
+                                            } else if (currentLine.trim().startsWith("mountPropagation:")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
+                                                String[] currentLineSplit = currentLine.trim().split(":");
+                                                if (currentLineSplit.length > 1) {
+                                                    volumeMount.setMountPropagation(currentLineSplit[1]);
+                                                }
+                                            } else {
+                                                lines.add(new Line(lineNumber, 0D, true));
+                                            }
+                                            if (iterator.hasNext()) {
+                                                currentLine = iterator.next();
+                                            } else {
+                                                break;
+                                            }
                                         }
+                                        if (iterator.hasNext()) iterator.previous();
                                         container.getVolumeMounts().add(volumeMount);
                                     }
+                                    if (iterator.hasNext()) iterator.previous();
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
@@ -201,33 +235,54 @@ public class PodSpecParser extends BaseParser {
                         lines.add(new Line(lineNumber, 1D, true));
                         podSpec.setRestartPolicy(currentLine.split(":")[1].trim());
                     } else if (currentLine.trim().startsWith("volumes")) {
+                        int volumesLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                         lines.add(new Line(lineNumber, 1D, true));
-                        while (iterator.hasNext() && countLeadingWhitespaces((currentLine = iterator.next()).replace("-", " ")) >= indentation + 4) {
-                            lineNumber++;
+                        while (iterator.hasNext() &&
+                                (currentLine = iterator.next()).trim().startsWith("-") &&
+                                countLeadingWhitespaces(currentLine) >= volumesLeadingWhitespaces) {
                             Volume volume = new Volume();
-                            if (currentLine.trim().startsWith("name:")) {
-                                lines.add(new Line(lineNumber, 1D, true));
-                                volume.setName(currentLine.trim().split(":")[1]);
-                            } else if (currentLine.trim().startsWith("persistentVolumeClaim:")) {
-                                lines.add(new Line(lineNumber, 1D, true));
-                                while (iterator.hasNext() &&
-                                        countLeadingWhitespaces((currentLine = iterator.next())) >= indentation + 6) {
-                                    lineNumber++;
-                                    if (currentLine.trim().startsWith("claimName:")) {
-                                        volume.setPersistentVolumeClaimName(currentLine.trim().split(":")[1]);
-                                        lines.add(new Line(lineNumber, 1D, true));
-                                    } else if (currentLine.trim().startsWith("readOnly:")) {
-                                        lines.add(new Line(lineNumber, 1D, true));
-                                        volume.setPersistentVolumeClaimReadOnly(Boolean.parseBoolean(currentLine.trim().split(
-                                                ":")[1]));
-                                    }
-                                    if (iterator.hasNext()) iterator.previous();
+                            currentLine = currentLine.replaceFirst("-", " ");
+                            while (countLeadingWhitespaces(currentLine) > volumesLeadingWhitespaces) {
+                                if (currentLine.trim().startsWith("-")) {
+                                    break;
                                 }
-                            } else {
-                                lines.add(new Line(lineNumber, 0D, true));
+                                lineNumber++;
+                                if (currentLine.trim().startsWith("name:")) {
+                                    lines.add(new Line(lineNumber, 1D, true));
+                                    volume.setName(currentLine.trim().split(":")[1].trim());
+                                } else if (currentLine.trim().startsWith("persistentVolumeClaim:")) {
+                                    lines.add(new Line(lineNumber, 1D, true));
+                                    while (iterator.hasNext() &&
+                                            countLeadingWhitespaces((currentLine = iterator.next())) > volumesLeadingWhitespaces) {
+                                        if (currentLine.trim().startsWith("-")) {
+                                            break;
+                                        }
+                                        lineNumber++;
+                                        if (currentLine.trim().startsWith("claimName:")) {
+                                            volume.setPersistentVolumeClaimName(currentLine.trim().split(":")[1].trim());
+                                            lines.add(new Line(lineNumber, 1D, true));
+                                        } else if (currentLine.trim().startsWith("readOnly:")) {
+                                            lines.add(new Line(lineNumber, 1D, true));
+                                            volume.setPersistentVolumeClaimReadOnly(Boolean.parseBoolean(currentLine.trim().split(
+                                                    ":")[1].trim()));
+                                        } else {
+                                            lines.add(new Line(lineNumber, 0D, true));
+                                        }
+                                        if (iterator.hasNext()) iterator.previous();
+                                    }
+                                } else {
+                                    lines.add(new Line(lineNumber, 0D, true));
+                                }
+                                if (iterator.hasNext()) {
+                                    currentLine = iterator.next();
+                                } else {
+                                    break;
+                                }
                             }
                             podSpec.getVolumes().add(volume);
+                            if (iterator.hasNext()) iterator.previous();
                         }
+                        if (iterator.hasNext()) iterator.previous();
                     }
                     else {
                         lines.add(new Line(lineNumber, 0D, true));

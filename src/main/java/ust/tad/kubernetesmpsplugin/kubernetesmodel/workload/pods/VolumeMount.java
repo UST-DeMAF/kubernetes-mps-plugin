@@ -5,10 +5,10 @@ import java.util.Objects;
 public class VolumeMount {
     private String mountPath;
     private String name;
-    private String mountPropagation;
-    private boolean readOnly;
-    private String subPath;
-    private String subPathExpr;
+    private String mountPropagation = "MountPropagationNone";
+    private boolean readOnly= false;
+    private String subPath = "";
+    private String subPathExpr = "";
 
     public VolumeMount() {}
 

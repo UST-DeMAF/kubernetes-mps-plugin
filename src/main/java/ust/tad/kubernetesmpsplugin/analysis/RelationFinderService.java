@@ -10,7 +10,8 @@ import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.Kubernete
 import ust.tad.kubernetesmpsplugin.models.tadm.*;
 
 @Service
-public class RelationFinderService {
+public class
+RelationFinderService {
 
   private final String[] PROPERTY_KEYWORDS = {"connect", "host", "server", "url", "uri"};
 

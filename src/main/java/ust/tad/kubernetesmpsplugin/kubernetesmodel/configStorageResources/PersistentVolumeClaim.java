@@ -3,16 +3,26 @@ package ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources;
 import java.util.Objects;
 
 public class PersistentVolumeClaim {
+    private String name;
     private String volumeName;
     private String requests;
     private String limit;
 
     public PersistentVolumeClaim() {}
 
-    public PersistentVolumeClaim(String volumeName, String requests, String limit) {
+    public PersistentVolumeClaim(String name, String volumeName, String requests, String limit) {
+        this.name = name;
         this.volumeName = volumeName;
         this.requests = requests;
         this.limit = limit;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getVolumeName() {
@@ -39,6 +49,11 @@ public class PersistentVolumeClaim {
         this.limit = limit;
     }
 
+    public PersistentVolumeClaim name(String name) {
+        setName(name);
+        return this;
+    }
+
     public PersistentVolumeClaim volumeName(String volumeName) {
         setVolumeName(volumeName);
         return this;
@@ -59,20 +74,22 @@ public class PersistentVolumeClaim {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PersistentVolumeClaim pvc = (PersistentVolumeClaim) o;
-        return Objects.equals(this.volumeName, pvc.volumeName) &&
+        return Objects.equals(this.name, pvc.name) &&
+                Objects.equals(this.volumeName, pvc.volumeName) &&
                 Objects.equals(this.limit, pvc.limit) &&
                 Objects.equals(this.requests, pvc.requests);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(volumeName, limit, requests);
+        return Objects.hash(name, volumeName, limit, requests);
     }
 
     @Override
     public String toString() {
         return "{" +
-                " volumeName='" + getVolumeName() + "'" +
+                " name='" + getName() + "'" +
+                ", volumeName='" + getVolumeName() + "'" +
                 ", limit='" + getLimit() + "'" +
                 ", requests='" + getRequests() + "'" +
                 "}";

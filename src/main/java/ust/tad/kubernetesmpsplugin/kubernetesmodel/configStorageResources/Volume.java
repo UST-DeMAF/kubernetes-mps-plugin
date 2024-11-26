@@ -4,17 +4,15 @@ import java.util.Objects;
 
 public class Volume {
     private String name;
-    private String persistentVolumeClaimName;
-    private boolean persistentVolumeClaimReadOnly;
-    private String subPath;
+    private String persistentVolumeClaimName = "";
+    private boolean persistentVolumeClaimReadOnly = false;
 
     public Volume() {}
 
-    public Volume(String name, String persistentVolumeClaimName, boolean persistentVolumeClaimReadOnly, String subPath) {
+    public Volume(String name, String persistentVolumeClaimName, boolean persistentVolumeClaimReadOnly) {
         this.name = name;
         this.persistentVolumeClaimName = persistentVolumeClaimName;
         this.persistentVolumeClaimReadOnly = persistentVolumeClaimReadOnly;
-        this.subPath = subPath;
     }
 
     public String getName() {
@@ -41,14 +39,6 @@ public class Volume {
         this.persistentVolumeClaimReadOnly = persistentVolumeClaimReadOnly;
     }
 
-    public String getSubPath() {
-        return subPath;
-    }
-
-    public void setSubPath(String subPath) {
-        this.subPath = subPath;
-    }
-
     public Volume name(String name) {
         setName(name);
         return this;
@@ -64,11 +54,6 @@ public class Volume {
         return this;
     }
 
-    public Volume subPath(String subPath) {
-        setSubPath(subPath);
-        return this;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -76,22 +61,20 @@ public class Volume {
         Volume volume = (Volume) o;
         return Objects.equals(name, volume.name) &&
                 Objects.equals(persistentVolumeClaimName, volume.persistentVolumeClaimName) &&
-                Objects.equals(persistentVolumeClaimReadOnly, volume.persistentVolumeClaimReadOnly) &&
-                Objects.equals(subPath, volume.subPath);
+                Objects.equals(persistentVolumeClaimReadOnly, volume.persistentVolumeClaimReadOnly);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, persistentVolumeClaimName, persistentVolumeClaimReadOnly, subPath);
+        return Objects.hash(name, persistentVolumeClaimName, persistentVolumeClaimReadOnly);
     }
 
     @Override
     public String toString() {
-        return "{" +
-                "name='" + name + "'" +
-                ", persistentVolumeClaimName='" + persistentVolumeClaimName + "'" +
+        return "Volume{" +
+                "name='" + name + '\'' +
+                ", persistentVolumeClaimName='" + persistentVolumeClaimName + '\'' +
                 ", persistentVolumeClaimReadOnly=" + persistentVolumeClaimReadOnly +
-                ", subPath='" + subPath + "'" +
-                "}";
+                '}';
     }
 }

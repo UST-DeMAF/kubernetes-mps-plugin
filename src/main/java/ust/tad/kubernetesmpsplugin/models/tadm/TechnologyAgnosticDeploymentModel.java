@@ -1,10 +1,7 @@
 package ust.tad.kubernetesmpsplugin.models.tadm;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class TechnologyAgnosticDeploymentModel {
 
@@ -221,25 +218,152 @@ public class TechnologyAgnosticDeploymentModel {
   }
 
   /**
-   * Add new component types to the existing ones.
+   * Add new ComponentTypes to the existing ComponentTypes.
+   * If there already exists a ComponentType with the same name, the new ComponentType is not
+   * added. Instead:
+   * 1.Components using the new ComponentType are changed to use the existing one.
+   * 2.Properties and Operations of the new ComponentType that are not present in the existing
+   * ComponentType are added to the existing ComponentType.
    *
    * @param newComponentTypes the component types to add.
    */
   public void addComponentTypes(Collection<ComponentType> newComponentTypes) {
     List<ComponentType> componentTypes = this.getComponentTypes();
-    componentTypes.addAll(newComponentTypes);
+    List<String> componentTypeNames =
+            componentTypes.stream().map(ComponentType::getName).collect(Collectors.toList());
+    for (ComponentType otherComponentType : newComponentTypes) {
+      if (componentTypeNames.contains(otherComponentType.getName())) {
+        Optional<ComponentType> matchedComponentType =
+                componentTypes.stream().filter(componentType -> componentType.getName().equals(otherComponentType.getName())).findFirst();
+        if (matchedComponentType.isPresent()) {
+          ComponentType existingComponentType = matchedComponentType.get();
+          this.replaceComponentTypeForComponents(otherComponentType, existingComponentType);
+          this.addPropertyToComponentTypeIfNotPresent(existingComponentType, otherComponentType);
+          this.addOperationToComponentTypeIfNotPresent(existingComponentType, otherComponentType);
+        }
+      } else {
+        componentTypes.add(otherComponentType);
+      }
+    }
     this.setComponentTypes(componentTypes);
   }
 
   /**
+   * Add Properties from another ComponentType to an existing ComponentType if they are not
+   * present.
+   *
+   * @param existingComponentType the ComponentType that Properties are added to.
+   * @param otherComponentType the ComponentType the Properties are added from.
+   */
+  private void addPropertyToComponentTypeIfNotPresent(ComponentType existingComponentType, ComponentType otherComponentType) {
+    List<Property> existingComponentTypeProperties = existingComponentType.getProperties();
+    List<String> propertyKeys =
+            existingComponentType.getProperties().stream().map(Property::getKey).collect(Collectors.toList());
+    for (Property property: otherComponentType.getProperties()) {
+      if (!propertyKeys.contains(property.getKey())) {
+        existingComponentTypeProperties.add(property);
+        existingComponentType.setProperties(existingComponentTypeProperties);
+      }
+    }
+  }
+
+  /**
+   * Add Operations from another ComponentType to an existing ComponentType if they are not
+   * present.
+   *
+   * @param existingComponentType the ComponentType that Operations are added to.
+   * @param otherComponentType the ComponentType the Operations are added from.
+   */
+  private void addOperationToComponentTypeIfNotPresent(ComponentType existingComponentType, ComponentType otherComponentType) {
+    List<Operation> existingComponentTypeOperations = existingComponentType.getOperations();
+    List<String> operationNames =
+            existingComponentType.getOperations().stream().map(Operation::getName).collect(Collectors.toList());
+    for (Operation operation: otherComponentType.getOperations()) {
+      if (!operationNames.contains(operation.getName())) {
+        existingComponentTypeOperations.add(operation);
+        existingComponentType.setOperations(existingComponentTypeOperations);
+      }
+    }
+  }
+
+  /**
+   * Replace the ComponentType of a Component with a new one.
+   *
+   * @param oldComponentType the ComponentType to be replaced.
+   * @param newComponentType the ComponentType that replaces the old one.
+   */
+  private void replaceComponentTypeForComponents(ComponentType oldComponentType, ComponentType newComponentType) {
+    List<Component> components = this.getComponents();
+    for (Component component : components) {
+      if (component.getType().equals(oldComponentType)) {
+        component.setType(newComponentType);
+      }
+    }
+    this.setComponents(components);
+  }
+
+  /**
    * Add new relation types to the existing ones.
+   * If there already exists a relation type with the same name, the new relation type is not
+   * added and relations using the new relation type are changed to use the existing one.
+   * In addition, relation types that have the duplicate relation type set as the parentType are
+   * changed to use the existing relation type.
    *
    * @param newRelationTypes the relation types to add.
    */
   public void addRelationTypes(Collection<RelationType> newRelationTypes) {
     List<RelationType> relationTypes = this.getRelationTypes();
-    relationTypes.addAll(newRelationTypes);
+    List<String> relationTypeNames =
+            relationTypes.stream().map(RelationType::getName).collect(Collectors.toList());
+    for (RelationType otherRelationType : newRelationTypes) {
+      if (relationTypeNames.contains(otherRelationType.getName())) {
+        Optional<RelationType> matchedRelationType =
+                relationTypes.stream().filter(relationType -> relationType.getName().equals(otherRelationType.getName())).findFirst();
+        matchedRelationType.ifPresent(relationType -> {
+          this.replaceRelationTypeForRelations(otherRelationType, relationType);
+          this.replaceParentTypeForRelationTypes(otherRelationType, relationType, newRelationTypes);
+          this.replaceParentTypeForRelationTypes(otherRelationType, relationType, relationTypes);
+        });
+      } else {
+        relationTypes.add(otherRelationType);
+      }
+    }
     this.setRelationTypes(relationTypes);
+  }
+
+  /**
+   * Replace the RelationType of a Relation with a new one.
+   *
+   * @param oldRelationType the relation type to be replaced.
+   * @param newRelationType the relation type that replaces the old one.
+   */
+  private void replaceRelationTypeForRelations(RelationType oldRelationType, RelationType newRelationType) {
+    List<Relation> relations = this.getRelations();
+    for (Relation relation : relations) {
+      if (relation.getType().equals(oldRelationType)) {
+        relation.setType(newRelationType);
+      }
+    }
+    this.setRelations(relations);
+  }
+
+  /**
+   * Replace the parentType of all RelationTypes in a list of RelationTypes that match the given
+   * old RelationType with a new RelationType.
+   *
+   * @param oldRelationType the current parentType.
+   * @param newRelationType the new parentType.
+   * @param relationTypes the list of RelationTypes to search for the old relation type.
+   * @return
+   */
+  private Collection<RelationType> replaceParentTypeForRelationTypes(
+          RelationType oldRelationType,
+          RelationType newRelationType,
+          Collection<RelationType> relationTypes) {
+    return relationTypes.stream().filter(relationType -> (relationType.getParentType() != null &&
+                    relationType.getParentType().equals(oldRelationType)))
+            .peek(relationType -> relationType.setParentType(newRelationType))
+            .collect(Collectors.toList());
   }
 
   /**

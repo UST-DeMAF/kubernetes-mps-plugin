@@ -7,8 +7,6 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -34,9 +32,6 @@ import ust.tad.kubernetesmpsplugin.models.tsdm.TechnologySpecificDeploymentModel
 
 @Service
 public class AnalysisService {
-
-  private final Logger LOG = LoggerFactory.getLogger(AnalysisService.class);
-
   @Autowired
   private ModelsService modelsService;
 
@@ -51,13 +46,13 @@ public class AnalysisService {
   private TechnologySpecificDeploymentModel tsdm;
   private TechnologyAgnosticDeploymentModel tadm;
 
-  private Set<KubernetesDeployment> deployments = new HashSet<>();
-  private Set<KubernetesService> services = new HashSet<>();
-  private Set<KubernetesPodSpec> pods = new HashSet<>();
-  private Set<KubernetesIngress> ingresses = new HashSet<>();
-  private Set<PersistentVolumeClaim> persistentVolumeClaims = new HashSet<>();
-  private Set<ConfigMap> configMaps = new HashSet<>();
-  private Set<Integer> newEmbeddedDeploymentModelIndexes = new HashSet<>();
+  private final Set<KubernetesDeployment> deployments = new HashSet<>();
+  private final Set<KubernetesService> services = new HashSet<>();
+  private final Set<KubernetesPodSpec> pods = new HashSet<>();
+  private final Set<KubernetesIngress> ingresses = new HashSet<>();
+  private final Set<PersistentVolumeClaim> persistentVolumeClaims = new HashSet<>();
+  private final Set<ConfigMap> configMaps = new HashSet<>();
+  private final Set<Integer> newEmbeddedDeploymentModelIndexes = new HashSet<>();
 
   /**
    * Start the analysis of the deployment model. 1. Retrieve internal deployment models from models
@@ -192,7 +187,7 @@ public class AnalysisService {
 
     this.tadm =
             transformationService.transformInternalToTADM(
-                    this.tadm, new KubernetesDeploymentModel(this.deployments, this.services));
+                    this.tadm, new KubernetesDeploymentModel(this.deployments, this.services, this.pods, this.ingresses, this.persistentVolumeClaims,this.configMaps));
   }
 
   public void parseFile(URL url) throws IOException, InvalidNumberOfLinesException, InvalidAnnotationException {
@@ -203,31 +198,41 @@ public class AnalysisService {
     int lineNumber = 1;
     BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
     while (reader.ready()) {
-      String nextline = reader.readLine();
-      if (nextline.startsWith("kind:")) {
-        String kind = nextline.split("kind:")[1].trim();
+      String nextLine = reader.readLine();
+      if (nextLine.startsWith("kind:")) {
+        String kind = nextLine.split("kind:")[1].trim();
         kind = kind.split("#")[0].trim();
         List<String> readInLines = new ArrayList<>();
+        readInLines.add(nextLine);
         int startLineNumber = lineNumber;
-        while (reader.ready() && !nextline.equals("---")) {
-          readInLines.add(nextline);
-          nextline = reader.readLine();
+        while (reader.ready()) {
+          nextLine = reader.readLine();
+          if (nextLine.equals("---")) {
+            break;
+          }
+          readInLines.add(nextLine);
           lineNumber++;
         }
         switch (kind) {
           case "Service":
             lines.addAll(ServiceParser.parseService(startLineNumber, readInLines, services));
             break;
-          case "StatefulSet":
           case "Deployment":
-            lines.addAll(DeploymentParser.parseDeployment(startLineNumber, readInLines, deployments));
+          case "StatefulSet":
+          case "ReplicaSet":
+            lines.addAll(DeploymentParser.parseDeployment(startLineNumber, readInLines,
+                    deployments, persistentVolumeClaims));
             break;
           case "PersistentVolumeClaim":
-            lines.addAll(PersistentVolumeClaimParser.parsePersistentVolumeClaim(startLineNumber, readInLines, persistentVolumeClaims));
+            lines.addAll(PersistentVolumeClaimParser.parsePersistentVolumeClaim(startLineNumber,
+                    readInLines, persistentVolumeClaims, Optional.empty()));
+            break;
           case "ConfigMap":
             lines.addAll(ConfigMapParser.parseConfigMap(startLineNumber, readInLines, configMaps));
+            break;
           case "Ingress":
             lines.addAll(IngressParser.parseIngress(startLineNumber, readInLines, ingresses));
+            break;
           default:
             lines.addAll(createLinesForUnknownType(lineNumber, readInLines));
             break;

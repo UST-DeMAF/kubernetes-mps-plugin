@@ -9,7 +9,7 @@ import java.util.Set;
 public class Container {
     private String name;
     private String image;
-    private String imagePullPolicy;
+    private String imagePullPolicy = "IfNotPresent";
     private List<String> command = new ArrayList<>();
     private List<String> args = new ArrayList<>();
     private String workingDir;
