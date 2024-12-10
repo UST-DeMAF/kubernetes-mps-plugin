@@ -3,15 +3,21 @@ package ust.tad.kubernetesmpsplugin.analysis;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import java.io.File;
-import java.io.IOException;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ust.tad.kubernetesmpsplugin.analysistask.AnalysisTaskResponseSender;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.models.tadm.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class TransformationService {
@@ -26,6 +32,8 @@ public class TransformationService {
 
   @Autowired private RelationFinderService relationFinderService;
 
+  @Autowired private AnalysisTaskResponseSender analysisTaskResponseSender;
+
   /**
    * Transforms given deployments and services of the internal Kubernetes model to an EDMM model.
    * Uses the MPS project for a model-to-model transformation. In the first step, creates a file
@@ -34,6 +42,7 @@ public class TransformationService {
    * resulting EDMM model is imported and added to the already existing technology-agnostic
    * deployment model. Lastly, the RelationFinderService is used to find EDMM relations.
    *
+   * @param taskId the ID of the current analysis task.
    * @param tadm the technology-agnostic deployment model that the transformation result shall be
    *     added to
    * @param kubernetesDeploymentModel the Kubernetes deployment model to transform
@@ -42,16 +51,18 @@ public class TransformationService {
    *     transformation result fails.
    */
   public TechnologyAgnosticDeploymentModel transformInternalToTADM(
-      final TechnologyAgnosticDeploymentModel tadm,
-      final KubernetesDeploymentModel kubernetesDeploymentModel)
-      throws IOException {
+          final UUID taskId,
+          final TechnologyAgnosticDeploymentModel tadm,
+          final KubernetesDeploymentModel kubernetesDeploymentModel)
+          throws IOException {
     createMPSKubernetesDeploymentModel(kubernetesDeploymentModel);
     runMPSTransformation();
     TechnologyAgnosticDeploymentModel transformationResult = importMPSResult();
     tadm.addFromOtherTADM(transformationResult);
     tadm.addRelations(
-        relationFinderService.createRelations(
-            tadm, kubernetesDeploymentModel, transformationResult.getComponents()));
+            relationFinderService.createRelations(
+                    tadm, kubernetesDeploymentModel, transformationResult.getComponents()));
+    sendDockerImageAnalysisTask(taskId, transformationResult, tadm);
     return tadm;
   }
 
@@ -105,5 +116,29 @@ public class TransformationService {
     mapper.addMixIn(
         TechnologyAgnosticDeploymentModel.class, TechnologyAgnosticDeploymentModelMixIn.class);
     return mapper.readValue(new File(mpsOutputPath), TechnologyAgnosticDeploymentModel.class);
+  }
+
+  /**
+   * Create an analysis task for analyzing Docker images if present in the transformation result.
+   *
+   * @param taskId the ID of the current analysis task.
+   * @param transformationResult the TADM containing only the result of the transformation.
+   * @param tadm the complete TADM of the current transformation process.
+   */
+  private void sendDockerImageAnalysisTask(UUID taskId,
+                                           TechnologyAgnosticDeploymentModel transformationResult,
+                                           TechnologyAgnosticDeploymentModel tadm) {
+    List<String> componentsToAnalyze = new ArrayList<>();
+    for (Component component : transformationResult.getComponents()) {
+      if (tadm.getComponents().contains(component) && component.getArtifacts().stream().anyMatch(
+              artifact -> artifact.getType().equals("docker_image"))) {
+        componentsToAnalyze.add(component.getId());
+      }
+    }
+    if (!componentsToAnalyze.isEmpty()) {
+      analysisTaskResponseSender.sendEmbeddedDeploymentModelAnalysisRequestFromTADMEntities(
+              Map.of("Component", componentsToAnalyze), taskId, tadm.getTransformationProcessId()
+              , "Docker");
+    }
   }
 }

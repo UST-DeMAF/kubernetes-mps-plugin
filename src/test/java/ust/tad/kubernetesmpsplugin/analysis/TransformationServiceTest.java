@@ -1,10 +1,5 @@
 package ust.tad.kubernetesmpsplugin.analysis;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +13,13 @@ import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.Kubernete
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.*;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 @SpringBootTest
 public class TransformationServiceTest {
 
@@ -27,8 +29,8 @@ public class TransformationServiceTest {
   public void runTransformationSuccessful() throws IOException {
     KubernetesDeploymentModel inputModel = createDummyModel();
     TechnologyAgnosticDeploymentModel result =
-        transformationService.transformInternalToTADM(
-            new TechnologyAgnosticDeploymentModel(), inputModel);
+            transformationService.transformInternalToTADM(UUID.randomUUID(),
+                    new TechnologyAgnosticDeploymentModel(), inputModel);
     assertNotNull(result);
     System.out.println(result);
   }

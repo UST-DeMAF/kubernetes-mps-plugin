@@ -22,6 +22,9 @@ public class AnalysisTaskStartRequest {
   @JsonProperty("locations")
   private List<Location> locations;
 
+  @JsonProperty("tadmEntities")
+  private  List<TADMEntities> tadmEntities;
+
   public AnalysisTaskStartRequest() {}
 
   public AnalysisTaskStartRequest(
@@ -29,12 +32,14 @@ public class AnalysisTaskStartRequest {
       UUID transformationProcessId,
       List<String> commands,
       List<String> options,
-      List<Location> locations) {
+      List<Location> locations,
+      List<TADMEntities> tadmEntities) {
     this.taskId = taskId;
     this.transformationProcessId = transformationProcessId;
     this.commands = commands;
     this.options = options;
     this.locations = locations;
+    this.tadmEntities = tadmEntities;
   }
 
   public UUID getTaskId() {
@@ -77,6 +82,14 @@ public class AnalysisTaskStartRequest {
     this.locations = locations;
   }
 
+  public List<TADMEntities> getTadmEntities() {
+    return tadmEntities;
+  }
+
+  public void setTadmEntities(List<TADMEntities> tadmEntities) {
+    this.tadmEntities = tadmEntities;
+  }
+
   public AnalysisTaskStartRequest taskId(UUID taskId) {
     setTaskId(taskId);
     return this;
@@ -102,6 +115,11 @@ public class AnalysisTaskStartRequest {
     return this;
   }
 
+  public AnalysisTaskStartRequest tadmEntities(List<TADMEntities> tadmEntities) {
+    setTadmEntities(tadmEntities);
+    return this;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (o == this) return true;
@@ -113,12 +131,13 @@ public class AnalysisTaskStartRequest {
         && Objects.equals(transformationProcessId, analysisTaskStartRequest.transformationProcessId)
         && Objects.equals(commands, analysisTaskStartRequest.commands)
         && Objects.equals(options, analysisTaskStartRequest.options)
-        && Objects.equals(locations, analysisTaskStartRequest.locations);
+        && Objects.equals(locations, analysisTaskStartRequest.locations)
+        && Objects.equals(tadmEntities, analysisTaskStartRequest.tadmEntities);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(taskId, transformationProcessId, commands, options, locations);
+    return Objects.hash(taskId, transformationProcessId, commands, options, locations, tadmEntities);
   }
 
   @Override
@@ -138,6 +157,9 @@ public class AnalysisTaskStartRequest {
         + "'"
         + ", locations='"
         + getLocations()
+        + "'"
+        + ", tadmEntities='"
+        + getTadmEntities()
         + "'"
         + "}";
   }

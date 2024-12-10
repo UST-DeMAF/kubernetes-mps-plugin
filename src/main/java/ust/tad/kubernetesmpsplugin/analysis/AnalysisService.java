@@ -1,12 +1,5 @@
 package ust.tad.kubernetesmpsplugin.analysis;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,18 +10,21 @@ import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.ConfigMap;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.PersistentVolumeClaim;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.ingress.KubernetesIngress;
-import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
 import ust.tad.kubernetesmpsplugin.models.ModelsService;
 import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
-import ust.tad.kubernetesmpsplugin.models.tsdm.DeploymentModelContent;
-import ust.tad.kubernetesmpsplugin.models.tsdm.InvalidAnnotationException;
-import ust.tad.kubernetesmpsplugin.models.tsdm.InvalidNumberOfContentException;
-import ust.tad.kubernetesmpsplugin.models.tsdm.InvalidNumberOfLinesException;
-import ust.tad.kubernetesmpsplugin.models.tsdm.Line;
-import ust.tad.kubernetesmpsplugin.models.tsdm.TechnologySpecificDeploymentModel;
+import ust.tad.kubernetesmpsplugin.models.tsdm.*;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.*;
 
 @Service
 public class AnalysisService {
@@ -86,7 +82,7 @@ public class AnalysisService {
     this.tadm = modelsService.getTechnologyAgnosticDeploymentModel(transformationProcessId);
 
     try {
-      runAnalysis(locations);
+      runAnalysis(taskId, locations);
     } catch (URISyntaxException
              | IOException
              | InvalidNumberOfLinesException
@@ -144,7 +140,8 @@ public class AnalysisService {
    * contained files. Removes the deployment model content associated with the old directory
    * locations because it has been resolved to the contained files.
    *
-   * @param locations
+   * @param taskId the ID of the current analysis task.
+   * @param locations the locations of the deployment models to analyze.
    * @throws InvalidNumberOfContentException
    * @throws InvalidAnnotationException
    * @throws InvalidNumberOfLinesException
@@ -152,7 +149,7 @@ public class AnalysisService {
    * @throws URISyntaxException
    * @throws InvalidPropertyValueException
    */
-  private void runAnalysis(List<Location> locations)
+  private void runAnalysis(UUID taskId, List<Location> locations)
           throws URISyntaxException,
           IOException,
           InvalidNumberOfLinesException,
@@ -164,7 +161,7 @@ public class AnalysisService {
       URL locationURL = new URL(locationURLString);
       if ("file".equals(locationURL.getProtocol()) && new File(locationURL.toURI()).isDirectory()) {
         File directory = new File(locationURL.toURI());
-        for (File file : directory.listFiles()) {
+        for (File file : Objects.requireNonNull(directory.listFiles())) {
           String fileExtension = StringUtils.getFilenameExtension(file.toURI().toURL().toString());
           if (fileExtension != null && supportedFileExtensions.contains(fileExtension)) {
             parseFile(file.toURI().toURL());
@@ -185,9 +182,9 @@ public class AnalysisService {
       }
     }
 
-    this.tadm =
-            transformationService.transformInternalToTADM(
-                    this.tadm, new KubernetesDeploymentModel(this.deployments, this.services, this.pods, this.ingresses, this.persistentVolumeClaims,this.configMaps));
+    this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm,
+            new KubernetesDeploymentModel(this.deployments, this.services, this.pods,
+                    this.ingresses, this.persistentVolumeClaims, this.configMaps));
   }
 
   public void parseFile(URL url) throws IOException, InvalidNumberOfLinesException, InvalidAnnotationException {

@@ -1,9 +1,6 @@
 package ust.tad.kubernetesmpsplugin.analysistask;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class EmbeddedDeploymentModelAnalysisRequest {
 
@@ -19,6 +16,8 @@ public class EmbeddedDeploymentModelAnalysisRequest {
 
   private List<Location> locations = new ArrayList<>();
 
+  private Map<String, List<String>> tadmEntities = new HashMap<>();
+
   public EmbeddedDeploymentModelAnalysisRequest() {}
 
   public EmbeddedDeploymentModelAnalysisRequest(
@@ -27,13 +26,15 @@ public class EmbeddedDeploymentModelAnalysisRequest {
       String technology,
       List<String> commands,
       List<String> options,
-      List<Location> locations) {
+      List<Location> locations,
+      Map<String, List<String>> tadmEntities) {
     this.parentTaskId = parentTaskId;
     this.transformationProcessId = transformationProcessId;
     this.technology = technology;
     this.commands = commands;
     this.options = options;
     this.locations = locations;
+    this.tadmEntities = tadmEntities;
   }
 
   public UUID getParentTaskId() {
@@ -84,6 +85,14 @@ public class EmbeddedDeploymentModelAnalysisRequest {
     this.locations = locations;
   }
 
+  public Map<String, List<String>> getTadmEntities() {
+    return tadmEntities;
+  }
+
+  public void setTadmEntities(Map<String, List<String>> tadmEntities) {
+    this.tadmEntities = tadmEntities;
+  }
+
   public EmbeddedDeploymentModelAnalysisRequest parentTaskId(UUID parentTaskId) {
     setParentTaskId(parentTaskId);
     return this;
@@ -115,6 +124,11 @@ public class EmbeddedDeploymentModelAnalysisRequest {
     return this;
   }
 
+  public EmbeddedDeploymentModelAnalysisRequest tadmEntities(Map<String, List<String>> tadmEntities) {
+    setTadmEntities(tadmEntities);
+    return this;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (o == this) return true;
@@ -129,13 +143,15 @@ public class EmbeddedDeploymentModelAnalysisRequest {
         && Objects.equals(technology, embeddedDeploymentModelAnalysisRequest.technology)
         && Objects.equals(commands, embeddedDeploymentModelAnalysisRequest.commands)
         && Objects.equals(options, embeddedDeploymentModelAnalysisRequest.options)
-        && Objects.equals(locations, embeddedDeploymentModelAnalysisRequest.locations);
+        && Objects.equals(locations, embeddedDeploymentModelAnalysisRequest.locations)
+        && Objects.equals(tadmEntities, embeddedDeploymentModelAnalysisRequest.tadmEntities);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        parentTaskId, transformationProcessId, technology, commands, options, locations);
+            parentTaskId, transformationProcessId, technology, commands, options, locations,
+            tadmEntities);
   }
 
   @Override
@@ -158,6 +174,9 @@ public class EmbeddedDeploymentModelAnalysisRequest {
         + "'"
         + ", locations='"
         + getLocations()
+        + "'"
+        + ", tadmEntities='"
+        + getTadmEntities()
         + "'"
         + "}";
   }
