@@ -138,7 +138,7 @@ public class TransformationService {
     if (!componentsToAnalyze.isEmpty()) {
       analysisTaskResponseSender.sendEmbeddedDeploymentModelAnalysisRequestFromTADMEntities(
               Map.of("Component", componentsToAnalyze), taskId, tadm.getTransformationProcessId()
-              , "Docker");
+              , "docker");
     }
   }
 }

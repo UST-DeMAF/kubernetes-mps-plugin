@@ -12,38 +12,38 @@ public class TADMEntities {
     @JsonProperty("id")
     private UUID id;
 
-    @JsonProperty("entityType")
-    private String entityType;
+    @JsonProperty("tadmEntitiesType")
+    private String tadmEntitiesType;
 
-    @JsonProperty("entities")
-    private List<String> entities = new ArrayList<>();
+    @JsonProperty("tadmEntityIds")
+    private List<String> tadmEntityIds = new ArrayList<>();
 
     public TADMEntities() {
     }
 
-    public TADMEntities(String entityType, List<String> entities) {
-        this.entityType = entityType;
-        this.entities = entities;
+    public TADMEntities(String tadmEntitiesType, List<String> tadmEntityIds) {
+        this.tadmEntitiesType = tadmEntitiesType;
+        this.tadmEntityIds = tadmEntityIds;
     }
 
     public UUID getId() {
         return id;
     }
 
-    public String getEntityType() {
-        return entityType;
+    public String getTadmEntitiesType() {
+        return tadmEntitiesType;
     }
 
-    public void setEntityType(String entityType) {
-        this.entityType = entityType;
+    public void setTadmEntitiesType(String tadmEntitiesType) {
+        this.tadmEntitiesType = tadmEntitiesType;
     }
 
-    public List<String> getEntities() {
-        return entities;
+    public List<String> getTadmEntityIds() {
+        return tadmEntityIds;
     }
 
-    public void setEntities(List<String> entities) {
-        this.entities = entities;
+    public void setTadmEntityIds(List<String> tadmEntityIds) {
+        this.tadmEntityIds = tadmEntityIds;
     }
 
     @Override
@@ -51,20 +51,20 @@ public class TADMEntities {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TADMEntities that = (TADMEntities) o;
-        return Objects.equals(id, that.id) && Objects.equals(entityType, that.entityType) && Objects.equals(entities, that.entities);
+        return Objects.equals(id, that.id) && Objects.equals(tadmEntitiesType, that.tadmEntitiesType) && Objects.equals(tadmEntityIds, that.tadmEntityIds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, entityType, entities);
+        return Objects.hash(id, tadmEntitiesType, tadmEntityIds);
     }
 
     @Override
     public String toString() {
         return "TADMEntities{" +
                 "id=" + id +
-                ", entityType='" + entityType + '\'' +
-                ", entities=" + entities +
+                ", entityType='" + tadmEntitiesType + '\'' +
+                ", entities=" + tadmEntityIds +
                 '}';
     }
 }
