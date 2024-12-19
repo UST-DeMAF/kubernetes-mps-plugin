@@ -233,7 +233,6 @@ public class TechnologyAgnosticDeploymentModel {
     List<ComponentType> componentTypes = this.getComponentTypes();
     List<String> componentTypeNames =
             componentTypes.stream().map(ComponentType::getName).collect(Collectors.toList());
-    System.out.println("Adding new component types: " + newComponentTypes);
     for (ComponentType newComponentType : newComponentTypes) {
       if (componentTypeNames.contains(newComponentType.getName())) {
         Optional<ComponentType> matchedComponentType =
