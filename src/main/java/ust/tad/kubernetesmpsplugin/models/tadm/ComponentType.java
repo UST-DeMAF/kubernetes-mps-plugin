@@ -26,7 +26,6 @@ public class ComponentType extends ModelElementType {
     return this.parentType;
   }
 
-  @JsonProperty("extends")
   public void setParentType(ComponentType parentType) {
     this.parentType = parentType;
   }

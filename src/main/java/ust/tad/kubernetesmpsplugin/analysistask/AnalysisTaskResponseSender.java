@@ -43,7 +43,6 @@ public class AnalysisTaskResponseSender {
     sendAnalysisTaskResponse(analysisTaskResponse);
   }
 
-
   /**
    * Send a failure response as an Analysis Task Response containing the error message.
    *
@@ -81,7 +80,6 @@ public class AnalysisTaskResponseSender {
       e.printStackTrace();
     }
   }
-
 
   /**
    * Send the Embedded Deployment Model Analysis Task Request.

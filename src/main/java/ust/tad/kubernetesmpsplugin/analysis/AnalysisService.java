@@ -176,7 +176,7 @@ public class AnalysisService {
         this.tsdm.removeDeploymentModelContent(contentToRemove);
       } else {
         String fileExtension = StringUtils.getFilenameExtension(locationURLString);
-        if (supportedFileExtensions.contains(fileExtension)) {
+        if (fileExtension != null && supportedFileExtensions.contains(fileExtension)) {
           parseFile(locationURL);
         }
       }
