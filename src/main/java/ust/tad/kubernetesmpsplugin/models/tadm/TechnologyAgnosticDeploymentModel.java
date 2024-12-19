@@ -221,9 +221,11 @@ public class TechnologyAgnosticDeploymentModel {
    * Add new ComponentTypes to the existing ComponentTypes.
    * If there already exists a ComponentType with the same name, the new ComponentType is not
    * added. Instead:
-   * 1.Components using the new ComponentType are changed to use the existing one.
-   * 2.Properties and Operations of the new ComponentType that are not present in the existing
+   * 1. Components using the new ComponentType are changed to use the existing one.
+   * 2. Properties and Operations of the new ComponentType that are not present in the existing
    * ComponentType are added to the existing ComponentType.
+   * 3. ComponentTypes that have the duplicate ComponentType set as the parentType are changed to
+   * use the existing ComponentType.
    *
    * @param newComponentTypes the component types to add.
    */
@@ -231,18 +233,21 @@ public class TechnologyAgnosticDeploymentModel {
     List<ComponentType> componentTypes = this.getComponentTypes();
     List<String> componentTypeNames =
             componentTypes.stream().map(ComponentType::getName).collect(Collectors.toList());
-    for (ComponentType otherComponentType : newComponentTypes) {
-      if (componentTypeNames.contains(otherComponentType.getName())) {
+    System.out.println("Adding new component types: " + newComponentTypes);
+    for (ComponentType newComponentType : newComponentTypes) {
+      if (componentTypeNames.contains(newComponentType.getName())) {
         Optional<ComponentType> matchedComponentType =
-                componentTypes.stream().filter(componentType -> componentType.getName().equals(otherComponentType.getName())).findFirst();
-        if (matchedComponentType.isPresent()) {
-          ComponentType existingComponentType = matchedComponentType.get();
-          this.replaceComponentTypeForComponents(otherComponentType, existingComponentType);
-          this.addPropertyToComponentTypeIfNotPresent(existingComponentType, otherComponentType);
-          this.addOperationToComponentTypeIfNotPresent(existingComponentType, otherComponentType);
-        }
+                componentTypes.stream().filter(componentType -> componentType.getName().equals(newComponentType.getName())).findFirst();
+        matchedComponentType.ifPresent(componentType -> {
+          this.replaceComponentTypeForComponents(newComponentType, componentType);
+          this.addPropertyToComponentTypeIfNotPresent(componentType, newComponentType);
+          this.addOperationToComponentTypeIfNotPresent(componentType, newComponentType);
+          this.replaceParentTypeForComponentTypes(newComponentType, componentType,
+                  newComponentTypes);
+          this.replaceParentTypeForComponentTypes(newComponentType, componentType, componentTypes);
+        });
       } else {
-        componentTypes.add(otherComponentType);
+        componentTypes.add(newComponentType);
       }
     }
     this.setComponentTypes(componentTypes);
@@ -300,6 +305,25 @@ public class TechnologyAgnosticDeploymentModel {
       }
     }
     this.setComponents(components);
+  }
+
+  /**
+   * Replace the parentType of all ComponentTypes in a list of ComponentTypes that match the given
+   * old ComponentTypes with a new ComponentTypes.
+   *
+   * @param oldComponentType the current parentType.
+   * @param newComponentType the new parentType.
+   * @param componentTypes the list of ComponentTypes to search for the old relation type.
+   * @return
+   */
+  private Collection<ComponentType> replaceParentTypeForComponentTypes(
+          ComponentType oldComponentType,
+          ComponentType newComponentType,
+          Collection<ComponentType> componentTypes) {
+    return componentTypes.stream().filter(componentType -> (componentType.getParentType() != null &&
+                    componentType.getParentType().equals(oldComponentType)))
+            .peek(componentType -> componentType.setParentType(newComponentType))
+            .collect(Collectors.toList());
   }
 
   /**
