@@ -17,11 +17,14 @@ public class KubernetesPodSpec {
 
     public KubernetesPodSpec() {}
 
-    public KubernetesPodSpec(String hostname, String restartPolicy, Set<Container> containers, Set<Container> initContainers, Set<Volume> volumes) {
+    public KubernetesPodSpec(String hostname, String restartPolicy, Set<Container> containers,
+                             Set<Container> initContainers, Set<StringStringMap> labels,
+                             Set<Volume> volumes) {
         this.hostname = hostname;
         this.restartPolicy = restartPolicy;
         this.containers = containers;
         this.initContainers = initContainers;
+        this.labels = labels;
         this.volumes = volumes;
     }
 
@@ -73,12 +76,17 @@ public class KubernetesPodSpec {
             return false;
         }
         KubernetesPodSpec podSpec = (KubernetesPodSpec) o;
-        return Objects.equals(hostname, podSpec.hostname) && Objects.equals(restartPolicy, podSpec.restartPolicy) && Objects.equals(containers, podSpec.containers) && Objects.equals(initContainers, podSpec.initContainers) && Objects.equals(volumes, podSpec.volumes);
+        return Objects.equals(hostname, podSpec.hostname) &&
+                Objects.equals(restartPolicy, podSpec.restartPolicy) &&
+                Objects.equals(containers, podSpec.containers) &&
+                Objects.equals(initContainers, podSpec.initContainers) &&
+                Objects.equals(labels, podSpec.labels) &&
+                Objects.equals(volumes, podSpec.volumes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(hostname, restartPolicy, containers, initContainers, volumes);
+        return Objects.hash(hostname, restartPolicy, containers, initContainers, labels, volumes);
     }
 
     @Override
@@ -88,6 +96,7 @@ public class KubernetesPodSpec {
                 ", restartPolicy='" + getRestartPolicy() + "'" +
                 ", containers=" + getContainers() +
                 ", initContainers=" + getInitContainers() +
+                ", labels=" + getLabels() +
                 ", volumes=" + getVolumes() +
                 "}";
     }

@@ -26,14 +26,14 @@ public class IngressParser {
                 lineNumber++;
                 lines.add(new Line(lineNumber, 1D, true));
 
-                while (iterator.hasNext() && (currentLine = iterator.next()).startsWith("  ")) {
+                while (iterator.hasNext() && ((currentLine = iterator.next()).startsWith("  ") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("ingressClassName:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         ingress.setIngressClassName(currentLine.trim().split(":")[1]);
                     } else if (currentLine.trim().startsWith("rules:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        while (iterator.hasNext() && (currentLine = iterator.next()).startsWith("    -")) {
+                        while (iterator.hasNext() && ((currentLine = iterator.next()).startsWith("    -") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             lineNumber++;
                             IngressRule rule = new IngressRule();
                             if (currentLine.replace("-", "").trim().startsWith("host:")) {
@@ -42,7 +42,7 @@ public class IngressParser {
                             } else if (currentLine.trim().startsWith("paths:")) {
                                 lines.add(new Line(lineNumber, 1D, true));
                                 HTTPIngressRuleValue ruleValue = new HTTPIngressRuleValue();
-                                while(iterator.hasNext() && (currentLine = iterator.next()).startsWith("      -")) {
+                                while(iterator.hasNext() && ((currentLine = iterator.next()).startsWith("      -") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                     lineNumber++;
                                     if (currentLine.replace("-", "").trim().startsWith("path:")) {
                                         lines.add(new Line(lineNumber, 1D, true));
@@ -53,7 +53,7 @@ public class IngressParser {
                                     } else if (currentLine.replace("-", "").trim().startsWith("backend:")) {
                                         lines.add(new Line(lineNumber, 1D, true));
                                         IngressBackend backend = new IngressBackend();
-                                        while (iterator.hasNext() && (currentLine = iterator.next()).startsWith("        ")) {
+                                        while (iterator.hasNext() && ((currentLine = iterator.next()).startsWith("        ") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                             lineNumber++;
                                             if (currentLine.trim().startsWith("name:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
@@ -71,15 +71,23 @@ public class IngressParser {
                                                 } else {
                                                     lines.add(new Line(lineNumber, 0D, true));
                                                 }
+                                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
                                             } else {
                                                 lines.add(new Line(lineNumber, 0D, true));
                                             }
                                         }
 
                                         ruleValue.setIngressBackend(backend);
+                                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                        lines.add(new Line(lineNumber, 1D, true));
+                                    } else {
+                                        lines.add(new Line(lineNumber, 0D, true));
                                     }
                                 }
                                 rule.getIngressRuleValues().add(ruleValue);
+                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                lines.add(new Line(lineNumber, 1D, true));
                             } else {
                                 lines.add(new Line(lineNumber, 0D, true));
                             }
@@ -87,6 +95,8 @@ public class IngressParser {
                         }
                         if (iterator.hasNext()) iterator.previous();
 
+                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                        lines.add(new Line(lineNumber, 1D, true));
                     } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }

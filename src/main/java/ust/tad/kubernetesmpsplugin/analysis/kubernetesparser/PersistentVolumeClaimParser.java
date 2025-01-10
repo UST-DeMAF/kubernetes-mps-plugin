@@ -20,16 +20,15 @@ public class PersistentVolumeClaimParser extends BaseParser {
             int leadingWhiteSpaces = countLeadingWhitespaces(currentLine);
             if (currentLine.trim().startsWith("metadata:")) {
                 lines.add(new Line(lineNumber, 1D, true));
-                while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next())) > leadingWhiteSpaces) {
+                while (iterator.hasNext() && ((countLeadingWhitespaces(currentLine = iterator.next())) > leadingWhiteSpaces || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("name:")) {
                         String name = currentLine.split("name:")[1].trim();
                         pvc.setName(name);
                         lines.add(new Line(lineNumber, 1D, true));
-                    } else if (currentLine.trim().startsWith("#")) {
-                        continue;
-                    }
-                    else {
+                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                        lines.add(new Line(lineNumber, 1D, true));
+                    } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
@@ -39,7 +38,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
             } else if (currentLine.trim().startsWith("spec:")) {
                 lineNumber++;
                 lines.add(new Line(lineNumber, 1D, true));
-                while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next())) > leadingWhiteSpaces) {
+                while (iterator.hasNext() && ((countLeadingWhitespaces(currentLine = iterator.next())) > leadingWhiteSpaces || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("volumeName:")) {
                         lines.add(new Line(lineNumber, 1D, true));
@@ -47,7 +46,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
                     } else if (currentLine.trim().startsWith("resources:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         int resourcesLeadingWhitespaces = countLeadingWhitespaces(currentLine);
-                        while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next())) > resourcesLeadingWhitespaces) {
+                        while (iterator.hasNext() && ((countLeadingWhitespaces(currentLine = iterator.next())) > resourcesLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             lineNumber++;
                             if (currentLine.trim().startsWith("limits:")) {
                                 lines.add(new Line(lineNumber, 1D, true));
@@ -67,15 +66,20 @@ public class PersistentVolumeClaimParser extends BaseParser {
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
+                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                lines.add(new Line(lineNumber, 1D, true));
                             } else {
                                 lines.add(new Line(lineNumber, 0D, true));
                             }
                         }
+                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                        lines.add(new Line(lineNumber, 1D, true));
                     } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
-
+            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                lines.add(new Line(lineNumber, 1D, true));
             } else {
                 lines.add(new Line(lineNumber, 0D, true));
             }

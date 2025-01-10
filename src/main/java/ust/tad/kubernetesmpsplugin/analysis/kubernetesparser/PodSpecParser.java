@@ -15,35 +15,37 @@ public class PodSpecParser extends BaseParser {
         KubernetesPodSpec podSpec = new KubernetesPodSpec();
         ListIterator<String> iterator = readInLines.listIterator();
         int indentation = -1;
-
         while (iterator.hasNext()) {
             String currentLine = iterator.next();
             // in first iteration determine indentation because PodSpec can occur indented, and we need to know this
             // offset to correctly determine the boundaries of an even further indented block
             // i.e. when passing PodSpec from Deployment anything regarded PodSpec is indented by at least 2 spaces
             if (indentation < 0) indentation = countLeadingWhitespaces(currentLine);
-
             // When called from i.e. deployment, the Pod Template is indented by 2. If currentLine is less indented
             // we know that we finished analyzing everything belonging to the pod specification
-            if (countLeadingWhitespaces(currentLine) < indentation) break;
+            if (countLeadingWhitespaces(currentLine) < indentation && !(currentLine.equals("") || currentLine.trim().startsWith("#"))) break;
             if (currentLine.trim().startsWith("metadata:")) {
                 lines.add(new Line(lineNumber, 1D, true));
-                while (iterator.hasNext() && countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 2) {
+                while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 2 || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("labels:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        while (iterator.hasNext() && countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 4) {
+                        while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 4 || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             lineNumber++;
-                            String[] lineSplit = currentLine.split(":");
-                            StringStringMap label = new StringStringMap(lineSplit[0].trim(), lineSplit[1].trim());
-                            Set<StringStringMap> labels = podSpec.getLabels();
-                            labels.add(label);
-                            podSpec.setLabels(labels);
-                            lines.add(new Line(lineNumber, 1D, true));
+                            if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                lines.add(new Line(lineNumber, 1D, true));
+                            } else {
+                                String[] lineSplit = currentLine.split(":");
+                                StringStringMap label = new StringStringMap(lineSplit[0].trim(), lineSplit[1].trim());
+                                Set<StringStringMap> labels = podSpec.getLabels();
+                                labels.add(label);
+                                podSpec.setLabels(labels);
+                                lines.add(new Line(lineNumber, 1D, true));
+                            }
                         }
                         if (iterator.hasNext()) iterator.previous();
-                    } else if (currentLine.trim().startsWith("#")) {
-                        continue;
+                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                        lines.add(new Line(lineNumber, 1D, true));
                     } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
@@ -51,16 +53,16 @@ public class PodSpecParser extends BaseParser {
                 if (iterator.hasNext()) iterator.previous();
             } else if (currentLine.trim().startsWith("spec:")) {
                 lines.add(new Line(lineNumber, 1D, true));
-                while (iterator.hasNext() && countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 2) {
+                while (iterator.hasNext() && (countLeadingWhitespaces(currentLine = iterator.next()) >= indentation + 2 || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("containers:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         int containerLeadingSpaces = countLeadingWhitespaces(currentLine);
-                        while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= containerLeadingSpaces) {
+                        while (iterator.hasNext() && (((currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= containerLeadingSpaces) || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             lineNumber++;
                             Container container = new Container();
                             currentLine = currentLine.replaceFirst("-", " ");
-                            while (countLeadingWhitespaces(currentLine) > containerLeadingSpaces) {
+                            while (countLeadingWhitespaces(currentLine) > containerLeadingSpaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                 if (currentLine.trim().startsWith("name:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     container.setName(currentLine.split(":")[1].trim());
@@ -74,10 +76,10 @@ public class PodSpecParser extends BaseParser {
                                     int portsLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
                                     Set<ContainerPort> containerPorts = new HashSet<>();
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= portsLeadingWhitespaces) {
+                                    while (iterator.hasNext() && (((currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= portsLeadingWhitespaces) || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         ContainerPort containerPort = new ContainerPort();
                                         currentLine = currentLine.replaceFirst("-", " ");
-                                        while (countLeadingWhitespaces(currentLine) > portsLeadingWhitespaces) {
+                                        while (countLeadingWhitespaces(currentLine) > portsLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                             if (currentLine.trim().startsWith("-")) {
                                                 break;
                                             }
@@ -89,6 +91,8 @@ public class PodSpecParser extends BaseParser {
                                             } else if (currentLine.trim().startsWith("containerPort:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                                 containerPort.setPort(Integer.parseInt(lineSplitPort[1].trim()));
+                                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
                                             } else {
                                                 lines.add(new Line(lineNumber, 0D, true));
                                             }
@@ -111,10 +115,10 @@ public class PodSpecParser extends BaseParser {
                                     int envLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
                                     Set<EnvironmentVariable> environmentVariables = new HashSet<>();
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= envLeadingWhitespaces) {
+                                    while (iterator.hasNext() && (((currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= envLeadingWhitespaces) || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         EnvironmentVariable environmentVariable = new EnvironmentVariable();
                                         currentLine = currentLine.replaceFirst("-", " ");
-                                        while (countLeadingWhitespaces(currentLine) > envLeadingWhitespaces) {
+                                        while (countLeadingWhitespaces(currentLine) > envLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                             if (currentLine.trim().startsWith("-")) {
                                                 break;
                                             }
@@ -125,6 +129,8 @@ public class PodSpecParser extends BaseParser {
                                             } else if (currentLine.trim().startsWith("value:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                                 environmentVariable.setValue(currentLine.split("value:")[1].trim());
+                                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
                                             } else {
                                                 lines.add(new Line(lineNumber, 0D, true));
                                             }
@@ -146,27 +152,31 @@ public class PodSpecParser extends BaseParser {
                                     container.setWorkingDir(currentLine.split("workingDir:")[1].trim());
                                 } else if (currentLine.trim().startsWith("args:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
+                                    while (iterator.hasNext() && ((currentLine = iterator.next()).trim().startsWith("-") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         lineNumber++;
                                         lines.add(new Line(lineNumber, 1D, true));
-                                        container.getArgs().add(currentLine.trim().replaceFirst("-", ""));
+                                        if (!(currentLine.equals("") || currentLine.trim().startsWith("#"))) {
+                                            container.getArgs().add(currentLine.trim().replaceFirst("-", ""));
+                                        }
                                     }
                                     if (iterator.hasNext()) iterator.previous();
                                 } else if (currentLine.trim().startsWith("command:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-")) {
+                                    while (iterator.hasNext() && ((currentLine = iterator.next()).trim().startsWith("-") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         lineNumber++;
                                         lines.add(new Line(lineNumber, 1D, true));
-                                        container.getCommand().add(currentLine.trim().replaceFirst("-", ""));
+                                        if (!(currentLine.equals("") || currentLine.trim().startsWith("#"))) {
+                                            container.getCommand().add(currentLine.trim().replaceFirst("-", ""));
+                                        }
                                     }
                                     if (iterator.hasNext()) iterator.previous();
                                 } else if (currentLine.trim().startsWith("volumeMounts:")) {
                                     int volumeMountsLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    while (iterator.hasNext() && (currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= volumeMountsLeadingWhitespaces) {
+                                    while (iterator.hasNext() && (((currentLine = iterator.next()).trim().startsWith("-") && countLeadingWhitespaces(currentLine) >= volumeMountsLeadingWhitespaces) || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         VolumeMount volumeMount = new VolumeMount();
                                         currentLine = currentLine.replaceFirst("-", " ");
-                                        while (countLeadingWhitespaces(currentLine) > volumeMountsLeadingWhitespaces) {
+                                        while (countLeadingWhitespaces(currentLine) > volumeMountsLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                             if (currentLine.trim().startsWith("-")) {
                                                 break;
                                             }
@@ -198,6 +208,8 @@ public class PodSpecParser extends BaseParser {
                                                 if (currentLineSplit.length > 1) {
                                                     volumeMount.setMountPropagation(currentLineSplit[1]);
                                                 }
+                                            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                                lines.add(new Line(lineNumber, 1D, true));
                                             } else {
                                                 lines.add(new Line(lineNumber, 0D, true));
                                             }
@@ -211,6 +223,8 @@ public class PodSpecParser extends BaseParser {
                                         container.getVolumeMounts().add(volumeMount);
                                     }
                                     if (iterator.hasNext()) iterator.previous();
+                                } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                    lines.add(new Line(lineNumber, 1D, true));
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
@@ -238,11 +252,11 @@ public class PodSpecParser extends BaseParser {
                         int volumesLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                         lines.add(new Line(lineNumber, 1D, true));
                         while (iterator.hasNext() &&
-                                (currentLine = iterator.next()).trim().startsWith("-") &&
-                                countLeadingWhitespaces(currentLine) >= volumesLeadingWhitespaces) {
+                                (((currentLine = iterator.next()).trim().startsWith("-") &&
+                                countLeadingWhitespaces(currentLine) >= volumesLeadingWhitespaces) || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             Volume volume = new Volume();
                             currentLine = currentLine.replaceFirst("-", " ");
-                            while (countLeadingWhitespaces(currentLine) > volumesLeadingWhitespaces) {
+                            while (countLeadingWhitespaces(currentLine) > volumesLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                 if (currentLine.trim().startsWith("-")) {
                                     break;
                                 }
@@ -253,7 +267,7 @@ public class PodSpecParser extends BaseParser {
                                 } else if (currentLine.trim().startsWith("persistentVolumeClaim:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     while (iterator.hasNext() &&
-                                            countLeadingWhitespaces((currentLine = iterator.next())) > volumesLeadingWhitespaces) {
+                                            (countLeadingWhitespaces((currentLine = iterator.next())) > volumesLeadingWhitespaces || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                                         if (currentLine.trim().startsWith("-")) {
                                             break;
                                         }
@@ -265,11 +279,15 @@ public class PodSpecParser extends BaseParser {
                                             lines.add(new Line(lineNumber, 1D, true));
                                             volume.setPersistentVolumeClaimReadOnly(Boolean.parseBoolean(currentLine.trim().split(
                                                     ":")[1].trim()));
+                                        } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                            lines.add(new Line(lineNumber, 1D, true));
                                         } else {
                                             lines.add(new Line(lineNumber, 0D, true));
                                         }
                                         if (iterator.hasNext()) iterator.previous();
                                     }
+                                } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                    lines.add(new Line(lineNumber, 1D, true));
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
@@ -283,8 +301,9 @@ public class PodSpecParser extends BaseParser {
                             if (iterator.hasNext()) iterator.previous();
                         }
                         if (iterator.hasNext()) iterator.previous();
-                    }
-                    else {
+                    } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                        lines.add(new Line(lineNumber, 1D, true));
+                    } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
@@ -293,8 +312,9 @@ public class PodSpecParser extends BaseParser {
                 }
             } else if (currentLine.startsWith("kind:")) {
                 lines.add(new Line(lineNumber, 1D, true));
-            }
-            else {
+            } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                lines.add(new Line(lineNumber, 1D, true));
+            } else {
                 lines.add(new Line(lineNumber, 0D, true));
             }
             lineNumber++;
