@@ -34,7 +34,7 @@ public class ConfigMapParser extends BaseParser {
                 lineNumber++;
                 lines.add(new Line(lineNumber, 1D, true));
 
-                while (iterator.hasNext() && (currentLine = iterator.next()).startsWith("  ")) {
+                while (iterator.hasNext() && ((currentLine = iterator.next()).startsWith("  ") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("name:")) {
                         lines.add(new Line(lineNumber, 1D, true));

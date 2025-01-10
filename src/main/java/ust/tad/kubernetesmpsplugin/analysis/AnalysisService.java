@@ -181,7 +181,6 @@ public class AnalysisService {
         }
       }
     }
-
     this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm,
             new KubernetesDeploymentModel(this.deployments, this.services, this.pods,
                     this.ingresses, this.persistentVolumeClaims, this.configMaps));

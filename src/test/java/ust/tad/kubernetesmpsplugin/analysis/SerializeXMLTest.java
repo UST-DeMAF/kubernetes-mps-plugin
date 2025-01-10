@@ -69,6 +69,7 @@ public class SerializeXMLTest {
             "never",
             Set.of(dummyContainer),
             Set.of(),
+            Set.of(),
             Set.of(volume));
     KubernetesDeployment dummyDeployment =
             new KubernetesDeployment("dummyDeployment", 3, Set.of(label), Set.of(pod));
