@@ -33,6 +33,11 @@ RUN rm -rf /app/mps-transformation-kubernetes/build/download
 # Stage 2: Create a minimal runtime image using OpenJDK 11 JRE
 FROM openjdk:11-jre-slim
 
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory for the runtime stage
 WORKDIR /app
 
