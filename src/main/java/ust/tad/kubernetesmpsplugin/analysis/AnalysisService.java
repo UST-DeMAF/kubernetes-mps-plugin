@@ -12,6 +12,8 @@ import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.Persis
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.ingress.KubernetesIngress;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.Container;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.EnvironmentVariable;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
 import ust.tad.kubernetesmpsplugin.models.ModelsService;
 import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
@@ -25,6 +27,7 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AnalysisService {
@@ -181,6 +184,7 @@ public class AnalysisService {
         }
       }
     }
+    resolveVariableReferencesInEnvVariables();
     this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm,
             new KubernetesDeploymentModel(this.deployments, this.services, this.pods,
                     this.ingresses, this.persistentVolumeClaims, this.configMaps));
@@ -249,5 +253,31 @@ public class AnalysisService {
       lines.add(new Line(i, 0D, true));
     }
     return lines;
+  }
+
+  /**
+   * Replace Variable References in the environment variables of a PodSpec with the actual value.
+   */
+  private void resolveVariableReferencesInEnvVariables() {
+    Set<Container> containers = this.deployments.stream()
+            .flatMap(deployment -> deployment.getPodSpecs().stream())
+            .flatMap(kubernetesPodSpec -> kubernetesPodSpec.getContainers().stream())
+            .collect(Collectors.toSet());
+    for (Container container: containers) {
+      Set<EnvironmentVariable> envVars = container.getEnvironmentVariables();
+      for (EnvironmentVariable envVar: envVars) {
+        if (envVar.getValue().contains("$(")) {
+          String enVarValue = envVar.getValue();
+          String variableReference = enVarValue.substring(enVarValue.indexOf("$(")+2, enVarValue.indexOf(")"));
+          for (EnvironmentVariable enVarToSearch: envVars){
+            if (enVarToSearch.getKey().equals(variableReference)) {
+              String newEnvVarValue = enVarValue.replace("$(" + variableReference + ")",
+                      enVarToSearch.getValue().replaceAll("^\"|\"$", ""));
+              envVar.setValue(newEnvVarValue);
+            }
+          }
+        }
+      }
+    }
   }
 }
