@@ -13,7 +13,7 @@ import ust.tad.kubernetesmpsplugin.models.tadm.*;
 public class
 RelationFinderService {
 
-  private final String[] PROPERTY_KEYWORDS = {"connect", "host", "server", "url", "uri"};
+  private final String[] PROPERTY_KEYWORDS = {"connect", "host", "server", "url", "uri", "service", "addr", "endpoint"};
 
   private final Set<String> KUBERNETES_CLUSTER_TYPE_NAMES = Set.of("kubernetes_cluster",
           "azurerm_kubernetes_cluster", "aws_eks_cluster", "google_container_cluster");
