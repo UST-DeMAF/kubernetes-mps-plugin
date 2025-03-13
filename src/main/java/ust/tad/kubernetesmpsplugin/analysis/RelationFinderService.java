@@ -148,7 +148,13 @@ RelationFinderService {
                   sourceComponent,
                   tadm.getComponents(),
                   matchingServicesAndDeployments);
-          relationOpt.ifPresent(newRelations::add);
+          if (relationOpt.isPresent()) {
+            Relation newRelation = relationOpt.get();
+            if (!newRelations.stream().map(Relation::getName).collect(Collectors.toList())
+                    .contains(newRelation.getName())) {
+              newRelations.add(newRelation);
+            }
+          }
         }
       }
     }
