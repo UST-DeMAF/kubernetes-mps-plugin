@@ -33,8 +33,7 @@ public class ServiceParser extends BaseParser {
                             linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("name:")) {
-                        String name = currentLine.split("name:")[1].trim();
-                        kubernetesService.setName(name);
+                        kubernetesService.setName(getCleanedValue(currentLine.split("name:")[1]));
                         lines.add(new Line(lineNumber, 1D, true));
                     } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                         lines.add(new Line(lineNumber, 1D, true));
@@ -65,13 +64,13 @@ public class ServiceParser extends BaseParser {
                                 String[] lineSplit = currentLine.split(":");
                                 if (currentLine.trim().startsWith("name:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setName(lineSplit[1].trim());
+                                    servicePort.setName(getCleanedValue(lineSplit[1]));
                                 } else if (currentLine.trim().startsWith("port:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setPort(Integer.parseInt(lineSplit[1].trim()));
+                                    servicePort.setPort(Integer.parseInt(getCleanedValue(lineSplit[1])));
                                 } else if (currentLine.trim().startsWith("targetPort:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    servicePort.setTargetPort(lineSplit[1].trim());
+                                    servicePort.setTargetPort(getCleanedValue(lineSplit[1]));
                                 } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                 } else {
@@ -101,7 +100,7 @@ public class ServiceParser extends BaseParser {
                                 lines.add(new Line(lineNumber, 1D, true));
                             } else {
                                 String[] lineSplit = currentLine.split(":");
-                                StringStringMap selector = new StringStringMap(lineSplit[0].trim(), lineSplit[1].trim());
+                                StringStringMap selector = new StringStringMap(getCleanedValue(lineSplit[0]), getCleanedValue(lineSplit[1]));
                                 Set<StringStringMap> selectors = kubernetesService.getSelectors();
                                 selectors.add(selector);
                                 kubernetesService.setSelectors(selectors);
@@ -111,6 +110,9 @@ public class ServiceParser extends BaseParser {
                         if (linesIterator.hasNext()) {
                             linesIterator.previous();
                         }
+                    } else if (currentLine.trim().startsWith("clusterIP:")) {
+                        lines.add(new Line(lineNumber, 1D, true));
+                        kubernetesService.setClusterIP(getCleanedValue(currentLine.split(":")[1]));
                     } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                         lines.add(new Line(lineNumber, 1D, true));
                     } else {

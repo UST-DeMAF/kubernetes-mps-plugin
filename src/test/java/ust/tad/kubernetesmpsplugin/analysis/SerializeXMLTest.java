@@ -72,9 +72,9 @@ public class SerializeXMLTest {
             Set.of(),
             Set.of(volume));
     KubernetesDeployment dummyDeployment =
-            new KubernetesDeployment("dummyDeployment", 3, Set.of(label), Set.of(pod));
+            new KubernetesDeployment("dummyDeployment", 3, Set.of(label), Set.of(label), Set.of(pod));
     KubernetesDeployment dummyDeploymentTwo =
-            new KubernetesDeployment("dummyDeploymentTwo", 1, Set.of(label), Set.of(pod));
+            new KubernetesDeployment("dummyDeploymentTwo", 1, Set.of(label), Set.of(label), Set.of(pod));
 
     ServicePort servicePort = new ServicePort("defaultPort", 80, "8080");
     StringStringMap selector = new StringStringMap("app", "dummyApp");

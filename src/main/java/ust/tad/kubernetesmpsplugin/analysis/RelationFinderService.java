@@ -51,7 +51,7 @@ RelationFinderService {
 
   /**
    * Iterates over all Kubernetes deployments and services and matches deployments where a selector
-   * of the service matches the label of a deployment.
+   * of the service matches the selector match label of a deployment.
    *
    * @param services the Kubernetes services.
    * @param deployments the Kubernetes deployments.
@@ -63,11 +63,11 @@ RelationFinderService {
     for (KubernetesDeployment deployment : deployments) {
       for (KubernetesService service : services) {
         for (StringStringMap selector : service.getSelectors()) {
-          if (deployment.getLabels().stream()
+          if (deployment.getSelectorMatchLabels().stream()
               .anyMatch(
-                  label ->
-                      label.getKey().equals(selector.getKey())
-                          && label.getValue().equals(selector.getValue()))) {
+                  selectorMatchLabel ->
+                      selectorMatchLabel.getKey().equals(selector.getKey())
+                          && selectorMatchLabel.getValue().equals(selector.getValue()))) {
             matchingServicesAndDeployments.put(service, deployment);
           }
         }

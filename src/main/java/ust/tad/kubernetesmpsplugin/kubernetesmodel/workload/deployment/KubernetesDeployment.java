@@ -14,6 +14,7 @@ public class KubernetesDeployment {
     private int revisionHistorySeconds;
     private boolean paused;
     private Set<StringStringMap> labels = new HashSet<>();
+    private Set<StringStringMap> selectorMatchLabels = new HashSet<>();
     private Set<KubernetesPodSpec> podSpecs = new HashSet<>();
 
     public KubernetesDeployment() {}
@@ -22,11 +23,13 @@ public class KubernetesDeployment {
             String name,
             int replicas,
             Set<StringStringMap> labels,
+            Set<StringStringMap> selectorMatchLabels,
             Set<KubernetesPodSpec> podSpecs
     ) {
         this.name = name;
         this.replicas = replicas;
         this.labels = labels;
+        this.selectorMatchLabels = selectorMatchLabels;
         this.podSpecs = podSpecs;
     }
 
@@ -52,6 +55,14 @@ public class KubernetesDeployment {
 
     public void setLabels(Set<StringStringMap> labels) {
         this.labels = labels;
+    }
+
+    public Set<StringStringMap> getSelectorMatchLabels() {
+        return this.selectorMatchLabels;
+    }
+
+    public void setSelectorMatchLabels(Set<StringStringMap> selectorMatchLabels) {
+        this.selectorMatchLabels = selectorMatchLabels;
     }
 
     public Set<KubernetesPodSpec> getPodSpecs() {
@@ -101,6 +112,11 @@ public class KubernetesDeployment {
         return this;
     }
 
+    public KubernetesDeployment selectorMatchLabels(Set<StringStringMap> selectorMatchLabels) {
+        setSelectorMatchLabels(selectorMatchLabels);
+        return this;
+    }
+
     public KubernetesDeployment podSpecs(Set<KubernetesPodSpec> podSpecs) {
         setPodSpecs(podSpecs);
         return this;
@@ -117,12 +133,13 @@ public class KubernetesDeployment {
         return Objects.equals(name, deployment.name) &&
                 replicas == deployment.replicas &&
                 Objects.equals(labels, deployment.labels) &&
+                Objects.equals(selectorMatchLabels, deployment.selectorMatchLabels) &&
                 Objects.equals(podSpecs, deployment.podSpecs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, replicas, labels, podSpecs);
+        return Objects.hash(name, replicas, labels, selectorMatchLabels, podSpecs);
     }
 
     @Override
@@ -131,6 +148,7 @@ public class KubernetesDeployment {
                 " name='" + getName() + "'" +
                 ", replicas='" + getReplicas() + "'" +
                 ", labels='" + getLabels() + "'" +
+                ", labels='" + getSelectorMatchLabels() + "'" +
                 ", podSpecs='" + getPodSpecs() + "'" +
                 ", paused=" + isPaused() +
                 ", revisionHistorySeconds=" + getRevisionHistorySeconds() +

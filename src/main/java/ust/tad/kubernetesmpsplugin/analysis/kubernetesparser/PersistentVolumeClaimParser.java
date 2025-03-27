@@ -23,8 +23,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
                 while (iterator.hasNext() && ((countLeadingWhitespaces(currentLine = iterator.next())) > leadingWhiteSpaces || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                     lineNumber++;
                     if (currentLine.trim().startsWith("name:")) {
-                        String name = currentLine.split("name:")[1].trim();
-                        pvc.setName(name);
+                        pvc.setName(getCleanedValue(currentLine.split("name:")[1]));
                         lines.add(new Line(lineNumber, 1D, true));
                     } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                         lines.add(new Line(lineNumber, 1D, true));
@@ -42,7 +41,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
                     lineNumber++;
                     if (currentLine.trim().startsWith("volumeName:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        pvc.setVolumeName(currentLine.split(":")[1].trim());
+                        pvc.setVolumeName(getCleanedValue(currentLine.split(":")[1]));
                     } else if (currentLine.trim().startsWith("resources:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         int resourcesLeadingWhitespaces = countLeadingWhitespaces(currentLine);
@@ -53,7 +52,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
                                 currentLine = iterator.next();
                                 lines.add(new Line(lineNumber, 1D, true));
                                 if (currentLine.trim().startsWith("storage:")) {
-                                    pvc.setLimit(currentLine.split(":")[1].trim());
+                                    pvc.setLimit(getCleanedValue(currentLine.split(":")[1]));
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
@@ -62,7 +61,7 @@ public class PersistentVolumeClaimParser extends BaseParser {
                                 currentLine = iterator.next();
                                 lines.add(new Line(lineNumber, 1D, true));
                                 if (currentLine.trim().startsWith("storage:")) {
-                                    pvc.setRequests(currentLine.split(":")[1].trim());
+                                    pvc.setRequests(getCleanedValue(currentLine.split(":")[1]));
                                 } else {
                                     lines.add(new Line(lineNumber, 0D, true));
                                 }
