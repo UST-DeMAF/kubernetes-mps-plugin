@@ -70,10 +70,7 @@ public class AnalysisService {
           List<String> commands,
           List<String> options,
           List<Location> locations) {
-    this.newEmbeddedDeploymentModelIndexes.clear();
-    this.deployments.clear();
-    this.services.clear();
-
+    clearVariables();
     TechnologySpecificDeploymentModel completeTsdm =
             modelsService.getTechnologySpecificDeploymentModel(transformationProcessId);
     this.tsdm = getExistingTsdm(completeTsdm, locations);
@@ -279,5 +276,19 @@ public class AnalysisService {
         }
       }
     }
+  }
+
+  /**
+   * Clears the variables and resources set to avoid side effects between different transformation
+   * processes.
+   */
+  private void clearVariables() {
+    newEmbeddedDeploymentModelIndexes.clear();
+    deployments.clear();
+    services.clear();
+    pods.clear();
+    ingresses.clear();
+    persistentVolumeClaims.clear();
+    configMaps.clear();
   }
 }
