@@ -27,10 +27,14 @@ public class TransformationService {
   @Value("${mps.inputModel.path}")
   private String mpsInputPath;
 
+  @Value("${mps.inputExistingModel.path}")
+  private String mpsInputExistingModelPath;
+
+  @Value("${mps.inputTADM.path}")
+  private String mpsInputTADMPath;
+
   @Value("${mps.result.path}")
   private String mpsOutputPath;
-
-  @Autowired private RelationFinderService relationFinderService;
 
   @Autowired private AnalysisTaskResponseSender analysisTaskResponseSender;
 
@@ -53,17 +57,19 @@ public class TransformationService {
   public TechnologyAgnosticDeploymentModel transformInternalToTADM(
           final UUID taskId,
           final TechnologyAgnosticDeploymentModel tadm,
-          final KubernetesDeploymentModel kubernetesDeploymentModel)
+          final KubernetesDeploymentModel kubernetesDeploymentModel,
+          final KubernetesDeploymentModel existingKubernetesDeploymentModel)
           throws IOException {
-    createMPSKubernetesDeploymentModel(kubernetesDeploymentModel);
+    createMPSKubernetesDeploymentModel(kubernetesDeploymentModel, mpsInputPath);
+    createMPSKubernetesDeploymentModel(existingKubernetesDeploymentModel, mpsInputExistingModelPath);
+    createMPSExistingTADMInput(tadm);
     runMPSTransformation();
     TechnologyAgnosticDeploymentModel transformationResult = importMPSResult();
-    tadm.addFromOtherTADM(transformationResult);
-    tadm.addRelations(
-            relationFinderService.createRelations(
-                    tadm, kubernetesDeploymentModel, transformationResult.getComponents()));
+    transformationResult.setTransformationProcessId(tadm.getTransformationProcessId());
+    transformationResult.setId(tadm.getId());
+    removeTransformationMarker(transformationResult);
     sendDockerImageAnalysisTask(taskId, transformationResult, tadm);
-    return tadm;
+    return transformationResult;
   }
 
   /**
@@ -72,12 +78,27 @@ public class TransformationService {
    * input model.
    *
    * @param kubernetesDeploymentModel the Kubernetes deployment model to transform.
+   * @param path the path where to output the model.
    * @throws IOException if the XML file cannot be created.
    */
   private void createMPSKubernetesDeploymentModel(
-      final KubernetesDeploymentModel kubernetesDeploymentModel) throws IOException {
+      final KubernetesDeploymentModel kubernetesDeploymentModel, String path) throws IOException {
     XmlMapper xmlMapper = new XmlMapper();
-    xmlMapper.writeValue(new File(mpsInputPath), kubernetesDeploymentModel);
+    xmlMapper.writeValue(new File(path), kubernetesDeploymentModel);
+  }
+
+  /**
+   * Output the existing TADM to an XML file on the file system using the Jackson
+   * ObjectMapper for XML. The location on the file system is where the MPS project expects the
+   * input model.
+   *
+   * @param tadm the existing TADM to transform.
+   * @throws IOException if the XML file cannot be created.
+   */
+  private void createMPSExistingTADMInput(
+          final TechnologyAgnosticDeploymentModel tadm) throws IOException {
+    XmlMapper xmlMapper = new XmlMapper();
+    xmlMapper.writeValue(new File(mpsInputTADMPath), tadm);
   }
 
   /**
@@ -130,7 +151,7 @@ public class TransformationService {
                                            TechnologyAgnosticDeploymentModel tadm) {
     List<String> componentsToAnalyze = new ArrayList<>();
     for (Component component : transformationResult.getComponents()) {
-      if (tadm.getComponents().contains(component) && component.getArtifacts().stream().anyMatch(
+      if (!tadm.getComponents().contains(component) && component.getArtifacts().stream().anyMatch(
               artifact -> artifact.getType().equals("docker_image"))) {
         componentsToAnalyze.add(component.getId());
       }
@@ -140,5 +161,16 @@ public class TransformationService {
               Map.of("Component", componentsToAnalyze), taskId, tadm.getTransformationProcessId()
               , "docker");
     }
+  }
+
+  /**
+   * Remove the property used as transformation marker from the transformation result
+   *
+   * @param transformationResult the tadm with the transformation result.
+   */
+  private void removeTransformationMarker(TechnologyAgnosticDeploymentModel transformationResult) {
+    List<Property> properties = transformationResult.getProperties();
+    properties.removeIf(property -> property.getKey().equals("transformationMarker"));
+    transformationResult.setProperties(properties);
   }
 }

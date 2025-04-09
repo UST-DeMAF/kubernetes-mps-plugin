@@ -30,7 +30,7 @@ public class TransformationServiceTest {
     KubernetesDeploymentModel inputModel = createDummyModel();
     TechnologyAgnosticDeploymentModel result =
             transformationService.transformInternalToTADM(UUID.randomUUID(),
-                    new TechnologyAgnosticDeploymentModel(), inputModel);
+                    new TechnologyAgnosticDeploymentModel(), inputModel, new KubernetesDeploymentModel());
     assertNotNull(result);
     System.out.println(result);
   }
@@ -76,7 +76,7 @@ public class TransformationServiceTest {
 
     PersistentVolumeClaim pvc = new PersistentVolumeClaim("pvcName", "", "1Gi","3" );
 
-    return new KubernetesDeploymentModel(
+    return new KubernetesDeploymentModel(UUID.randomUUID(),
             Set.of(dummyDeployment, dummyDeploymentTwo), Set.of(dummyService), Set.of(), Set.of(),
             Set.of(pvc), Set.of());
   }

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.models.tadm.TechnologyAgnosticDeploymentModel;
 import ust.tad.kubernetesmpsplugin.models.tsdm.TechnologySpecificDeploymentModel;
 
@@ -21,8 +22,8 @@ public class ModelsService {
   /**
    * Retrieve a technology-specific deployment model from the model service.
    *
-   * @param transformationProcessId
-   * @return
+   * @param transformationProcessId the identifier of the technology-specific deployment model.
+   * @return the technology-specific deployment model.
    */
   public TechnologySpecificDeploymentModel getTechnologySpecificDeploymentModel(
       UUID transformationProcessId) {
@@ -42,7 +43,7 @@ public class ModelsService {
    * Update a technology-specific deployment model by sending it to the update endpoint of the
    * models service.
    *
-   * @param technologySpecificDeploymentModel
+   * @param technologySpecificDeploymentModel the technology-specific deployment model to update.
    */
   public void updateTechnologySpecificDeploymentModel(
       TechnologySpecificDeploymentModel technologySpecificDeploymentModel) {
@@ -61,8 +62,8 @@ public class ModelsService {
   /**
    * Retrieve a technology-agnostic deployment model from the model service.
    *
-   * @param transformationProcessId
-   * @return
+   * @param transformationProcessId the identifier of the technology-agnostic deployment model.
+   * @return the technology-agnostic deployment model.
    */
   public TechnologyAgnosticDeploymentModel getTechnologyAgnosticDeploymentModel(
       UUID transformationProcessId) {
@@ -82,7 +83,7 @@ public class ModelsService {
    * Update a technology-agnostic deployment model by sending it to the update endpoint of the
    * models service.
    *
-   * @param technologyAgnosticDeploymentModel
+   * @param technologyAgnosticDeploymentModel the technology-agnostic deployment model to update.
    */
   public void updateTechnologyAgnosticDeploymentModel(
       TechnologyAgnosticDeploymentModel technologyAgnosticDeploymentModel) {
@@ -96,5 +97,46 @@ public class ModelsService {
         .retrieve()
         .bodyToMono(TechnologyAgnosticDeploymentModel.class)
         .block();
+  }
+
+
+  /**
+   * Retrieve a kubernetes deployment model from the model service.
+   *
+   * @param transformationProcessId the identifier of the kubernetes deployment model.
+   * @return the kubernetes deployment model.
+   */
+  public KubernetesDeploymentModel getKubernetesDeploymentModel(
+          UUID transformationProcessId) {
+    LOG.info("Requesting kubernetes deployment model");
+    return modelsServiceApiClient
+            .get()
+            .uri(
+                    uriBuilder ->
+                            uriBuilder.path("/kubernetes/" + transformationProcessId).build())
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .bodyToMono(KubernetesDeploymentModel.class)
+            .block();
+  }
+
+  /**
+   * Update a kubernetes deployment model by sending it to the update endpoint of the
+   * models service.
+   *
+   * @param kubernetesDeploymentModel the kubernetesDeploymentModel to update.
+   */
+  public void updateKubernetesDeploymentModel(
+          KubernetesDeploymentModel kubernetesDeploymentModel) {
+    LOG.info("Updating kubernetes deployment model");
+    modelsServiceApiClient
+            .post()
+            .uri("/kubernetes")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
+            .body(BodyInserters.fromValue(kubernetesDeploymentModel))
+            .retrieve()
+            .bodyToMono(KubernetesDeploymentModel.class)
+            .block();
   }
 }

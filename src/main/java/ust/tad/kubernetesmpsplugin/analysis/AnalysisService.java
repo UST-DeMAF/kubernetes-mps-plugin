@@ -44,6 +44,7 @@ public class AnalysisService {
 
   private TechnologySpecificDeploymentModel tsdm;
   private TechnologyAgnosticDeploymentModel tadm;
+  private KubernetesDeploymentModel existingKubeModel;
 
   private final Set<KubernetesDeployment> deployments = new HashSet<>();
   private final Set<KubernetesService> services = new HashSet<>();
@@ -80,6 +81,7 @@ public class AnalysisService {
       return;
     }
     this.tadm = modelsService.getTechnologyAgnosticDeploymentModel(transformationProcessId);
+    this.existingKubeModel = modelsService.getKubernetesDeploymentModel(transformationProcessId);
 
     try {
       runAnalysis(taskId, locations);
@@ -94,7 +96,7 @@ public class AnalysisService {
       return;
     }
 
-    updateDeploymentModels(this.tsdm, this.tadm);
+    updateDeploymentModels(this.tsdm, this.tadm, this.existingKubeModel);
 
     if (newEmbeddedDeploymentModelIndexes.isEmpty()) {
       analysisTaskResponseSender.sendSuccessResponse(taskId);
@@ -127,10 +129,12 @@ public class AnalysisService {
     return null;
   }
 
-  private void updateDeploymentModels(
-          TechnologySpecificDeploymentModel tsdm, TechnologyAgnosticDeploymentModel tadm) {
+  private void updateDeploymentModels(TechnologySpecificDeploymentModel tsdm,
+                                      TechnologyAgnosticDeploymentModel tadm,
+                                      KubernetesDeploymentModel kubeModel) {
     modelsService.updateTechnologySpecificDeploymentModel(tsdm);
     modelsService.updateTechnologyAgnosticDeploymentModel(tadm);
+    modelsService.updateKubernetesDeploymentModel(kubeModel);
   }
 
   /**
@@ -182,9 +186,11 @@ public class AnalysisService {
       }
     }
     resolveVariableReferencesInEnvVariables();
-    this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm,
-            new KubernetesDeploymentModel(this.deployments, this.services, this.pods,
-                    this.ingresses, this.persistentVolumeClaims, this.configMaps));
+    KubernetesDeploymentModel kubeModel = new KubernetesDeploymentModel(
+            existingKubeModel.getTransformationProcessId(), this.deployments, this.services, this.pods,
+            this.ingresses, this.persistentVolumeClaims, this.configMaps);
+    this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, existingKubeModel);
+    existingKubeModel.addFromOtherModel(kubeModel);
   }
 
   public void parseFile(URL url) throws IOException, InvalidNumberOfLinesException, InvalidAnnotationException {
