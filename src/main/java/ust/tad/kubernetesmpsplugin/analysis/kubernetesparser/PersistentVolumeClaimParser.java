@@ -91,7 +91,13 @@ public class PersistentVolumeClaimParser extends BaseParser {
             pvc.setName(newPVCName);
             volume.setPersistentVolumeClaimName(newPVCName);
             Optional<KubernetesPodSpec> pod = deployment.get().getPodSpecs().stream().findFirst();
-            pod.ifPresent(kubernetesPodSpec -> kubernetesPodSpec.getVolumes().add(volume));
+            if (pod.isPresent()) {
+                pod.get().getVolumes().add(volume);
+            } else {
+                KubernetesPodSpec podSpec = new KubernetesPodSpec();
+                podSpec.getVolumes().add(volume);
+                deployment.get().getPodSpecs().add(podSpec);
+            }
         }
         pvcs.add(pvc);
         return lines;

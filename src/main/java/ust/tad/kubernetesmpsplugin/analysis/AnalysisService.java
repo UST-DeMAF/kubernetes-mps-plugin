@@ -6,6 +6,7 @@ import org.springframework.util.StringUtils;
 import ust.tad.kubernetesmpsplugin.analysis.kubernetesparser.*;
 import ust.tad.kubernetesmpsplugin.analysistask.AnalysisTaskResponseSender;
 import ust.tad.kubernetesmpsplugin.analysistask.Location;
+import ust.tad.kubernetesmpsplugin.analysistask.TADMEntities;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.ConfigMap;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.PersistentVolumeClaim;
@@ -64,17 +65,22 @@ public class AnalysisService {
    * @param transformationProcessId
    * @param commands
    * @param locations
+   * @param tadmEntities
    */
   public void startAnalysis(
           UUID taskId,
           UUID transformationProcessId,
           List<String> commands,
           List<String> options,
-          List<Location> locations) {
+          List<Location> locations, List<TADMEntities> tadmEntities) {
     clearVariables();
     TechnologySpecificDeploymentModel completeTsdm =
             modelsService.getTechnologySpecificDeploymentModel(transformationProcessId);
-    this.tsdm = getExistingTsdm(completeTsdm, locations);
+    if (locations.isEmpty()) {
+      this.tsdm = completeTsdm;
+    } else {
+      this.tsdm = getExistingTsdm(completeTsdm, locations);
+    }
     if (tsdm == null) {
       analysisTaskResponseSender.sendFailureResponse(
               taskId, "No technology-specific deployment model found!");
@@ -84,7 +90,11 @@ public class AnalysisService {
     this.existingKubeModel = modelsService.getKubernetesDeploymentModel(transformationProcessId);
 
     try {
-      runAnalysis(taskId, locations);
+      if (!options.isEmpty() && options.stream().anyMatch(s -> s.startsWith("extractedKubernetesModel"))) {
+        runAnalysisEmbeddedModel(taskId, options);
+      } else {
+        runAnalysis(taskId, locations);
+      }
     } catch (URISyntaxException
              | IOException
              | InvalidNumberOfLinesException
@@ -106,6 +116,20 @@ public class AnalysisService {
                 this.tsdm.getEmbeddedDeploymentModels().get(index), taskId);
       }
       analysisTaskResponseSender.sendSuccessResponse(taskId);
+    }
+  }
+
+  private void runAnalysisEmbeddedModel(UUID taskId, List<String> options) throws IOException {
+    Optional<String> option = options.stream().filter(s -> s.startsWith("extractedKubernetesModel")).findFirst();
+    if (option.isPresent()) {
+      String modelId = option.get().split("=")[1];
+      KubernetesDeploymentModel kubeModel = modelsService.getKubernetesDeploymentModelById(UUID.fromString(modelId));
+      if (existingKubeModel.equals(kubeModel)) {
+        this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, new KubernetesDeploymentModel());
+      } else {
+        this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, existingKubeModel);
+        existingKubeModel.addFromOtherModel(kubeModel);
+      }
     }
   }
 

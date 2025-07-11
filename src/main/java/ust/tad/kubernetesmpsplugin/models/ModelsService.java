@@ -103,7 +103,7 @@ public class ModelsService {
   /**
    * Retrieve a kubernetes deployment model from the model service.
    *
-   * @param transformationProcessId the identifier of the kubernetes deployment model.
+   * @param transformationProcessId the identifier of the transformation process of the kubernetes deployment model.
    * @return the kubernetes deployment model.
    */
   public KubernetesDeploymentModel getKubernetesDeploymentModel(
@@ -114,6 +114,26 @@ public class ModelsService {
             .uri(
                     uriBuilder ->
                             uriBuilder.path("/kubernetes/" + transformationProcessId).build())
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .bodyToMono(KubernetesDeploymentModel.class)
+            .block();
+  }
+
+  /**
+   * Retrieve a kubernetes deployment model from the model service by its id.
+   *
+   * @param id the identifier of the kubernetes deployment model.
+   * @return the kubernetes deployment model.
+   */
+  public KubernetesDeploymentModel getKubernetesDeploymentModelById(
+          UUID id) {
+    LOG.info("Requesting kubernetes deployment model");
+    return modelsServiceApiClient
+            .get()
+            .uri(
+                    uriBuilder ->
+                            uriBuilder.path("/kubernetes/id/" + id).build())
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
             .bodyToMono(KubernetesDeploymentModel.class)

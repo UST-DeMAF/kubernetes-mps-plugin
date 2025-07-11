@@ -12,7 +12,15 @@ import java.util.*;
 public class PodSpecParser extends BaseParser {
     public static List<Line> parsePod(int lineNumber, List<String> readInLines, KubernetesDeployment deployment) throws InvalidAnnotationException {
         List<Line> lines = new ArrayList<>();
+
         KubernetesPodSpec podSpec = new KubernetesPodSpec();
+        Optional<KubernetesPodSpec> existingPodSpec = deployment.getPodSpecs().stream().findFirst();
+        if (existingPodSpec.isPresent()) {
+            podSpec = existingPodSpec.get();
+        } else {
+            deployment.getPodSpecs().add(podSpec);
+        }
+
         ListIterator<String> iterator = readInLines.listIterator();
         int indentation = -1;
         while (iterator.hasNext()) {
@@ -319,9 +327,6 @@ public class PodSpecParser extends BaseParser {
             }
             lineNumber++;
         }
-        Set<KubernetesPodSpec> podSpecs = deployment.getPodSpecs();
-        podSpecs.add(podSpec);
-        deployment.setPodSpecs(podSpecs);
         return lines;
     }
 }
