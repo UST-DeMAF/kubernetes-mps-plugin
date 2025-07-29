@@ -32,7 +32,7 @@ public class DeploymentParser extends BaseParser{
                                 lines.add(new Line(lineNumber, 1D, true));
                             } else {
                                 String[] lineSplit = currentLine.split(":");
-                                StringStringMap label = new StringStringMap(lineSplit[0].trim(), lineSplit[1].trim());
+                                StringStringMap label = new StringStringMap(getCleanedValue(lineSplit[0]), getCleanedValue(lineSplit[1]));
                                 Set<StringStringMap> labels = kubernetesDeployment.getLabels();
                                 labels.add(label);
                                 kubernetesDeployment.setLabels(labels);
@@ -43,13 +43,11 @@ public class DeploymentParser extends BaseParser{
                             linesIterator.previous();
                         }
                     } else if (currentLine.trim().startsWith("name:")) {
-                        String name = currentLine.split("name:")[1].trim();
-                        kubernetesDeployment.setName(name);
+                        kubernetesDeployment.setName(getCleanedValue(currentLine.split("name:")[1]));
                         lines.add(new Line(lineNumber, 1D, true));
                     } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                    }
-                    else {
+                    } else {
                         lines.add(new Line(lineNumber, 0D, true));
                     }
                 }
@@ -62,21 +60,43 @@ public class DeploymentParser extends BaseParser{
                     lineNumber++;
                     if (currentLine.trim().startsWith("replicas:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        int replicas = Integer.parseInt(currentLine.split("replicas:")[1].trim());
-                        kubernetesDeployment.setReplicas(replicas);
+                        kubernetesDeployment.setReplicas(Integer.parseInt(getCleanedValue(currentLine.split("replicas:")[1])));
                     } else if (currentLine.trim().startsWith("minReadySeconds:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        kubernetesDeployment.setMinReadySeconds(Integer.parseInt(currentLine.split(":")[1].trim()));
+                        kubernetesDeployment.setMinReadySeconds(Integer.parseInt(getCleanedValue(currentLine.split(":")[1])));
                     } else if (currentLine.trim().startsWith("paused:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        kubernetesDeployment.setPause(Boolean.parseBoolean(currentLine.split(":")[1].trim()));
+                        kubernetesDeployment.setPause(Boolean.parseBoolean(getCleanedValue(currentLine.split(":")[1])));
                     } else if (currentLine.trim().startsWith("revisionHistoryLimit:")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        kubernetesDeployment.setRevisionHistorySeconds(Integer.parseInt(currentLine.split(":")[1].trim()));
+                        kubernetesDeployment.setRevisionHistorySeconds(Integer.parseInt(getCleanedValue(currentLine.split(":")[1])));
                     } else if (currentLine.trim().startsWith("selector:")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         while(linesIterator.hasNext() && ((currentLine = linesIterator.next()).startsWith("    ") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
                             lineNumber++;
+                            if (currentLine.trim().startsWith("matchLabels:")) {
+                                lines.add(new Line(lineNumber, 1D, true));
+                                while(linesIterator.hasNext() && ((currentLine = linesIterator.next()).startsWith("      ") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
+                                    lineNumber++;
+                                    if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
+                                        lines.add(new Line(lineNumber, 1D, true));
+                                    } else {
+                                        String[] lineSplit = currentLine.split(":");
+                                        StringStringMap selectorMatchLabel = new StringStringMap(getCleanedValue(lineSplit[0]), getCleanedValue(lineSplit[1]));
+                                        Set<StringStringMap> selectorMatchLabels = kubernetesDeployment.getSelectorMatchLabels();
+                                        selectorMatchLabels.add(selectorMatchLabel);
+                                        kubernetesDeployment.setLabels(selectorMatchLabels);
+                                        lines.add(new Line(lineNumber, 1D, true));
+                                    }
+                                }
+                                if (linesIterator.hasNext()) {
+                                    linesIterator.previous();
+                                }
+                            } else {
+                                lines.add(new Line(lineNumber, 0D, true));
+                            }
+
+
                             lines.add(new Line(lineNumber, 1D, true));
                         }
                         if (linesIterator.hasNext()) {

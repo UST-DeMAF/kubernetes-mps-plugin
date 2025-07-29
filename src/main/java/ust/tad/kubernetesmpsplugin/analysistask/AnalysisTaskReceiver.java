@@ -47,15 +47,13 @@ public class AnalysisTaskReceiver {
    * Receives a message of type AnalysisTaskStartRequest. Transforms the message into an entity of
    * type AnalysisTaskStartRequest. Starts the analysis process of the plugin.
    *
-   * @param message
+   * @param message the received message.
    */
   private void receiveAnalysisTaskStartRequest(Message message) {
     ObjectMapper mapper = new ObjectMapper();
-
     AnalysisTaskStartRequest analysisTaskStartRequest =
         mapper.convertValue(
             jsonMessageConverter.fromMessage(message), AnalysisTaskStartRequest.class);
-
     LOG.info(
         String.format(
             "received AnalysisTaskStartRequest: %s", analysisTaskStartRequest.toString()));
@@ -64,7 +62,8 @@ public class AnalysisTaskReceiver {
         analysisTaskStartRequest.getTransformationProcessId(),
         analysisTaskStartRequest.getCommands(),
         analysisTaskStartRequest.getOptions(),
-        analysisTaskStartRequest.getLocations());
+        analysisTaskStartRequest.getLocations(),
+        analysisTaskStartRequest.getTadmEntities());
   }
 
   /** Creates and sends an AnalysisTaskResponse containing an error message. */

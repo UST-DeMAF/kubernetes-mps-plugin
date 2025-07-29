@@ -13,4 +13,14 @@ public class BaseParser {
         }
         return spaceCount;
     }
+
+    /**
+     * Utility function to get a string value free of comments and leading and trailing whitespaces.
+     *
+     * @param value the value to clean.
+     * @return the cleaned value.
+     */
+    public static String getCleanedValue(String value) {
+        return value.split("#")[0].trim();
+    }
 }

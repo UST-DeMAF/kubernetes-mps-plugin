@@ -12,7 +12,15 @@ import java.util.*;
 public class PodSpecParser extends BaseParser {
     public static List<Line> parsePod(int lineNumber, List<String> readInLines, KubernetesDeployment deployment) throws InvalidAnnotationException {
         List<Line> lines = new ArrayList<>();
+
         KubernetesPodSpec podSpec = new KubernetesPodSpec();
+        Optional<KubernetesPodSpec> existingPodSpec = deployment.getPodSpecs().stream().findFirst();
+        if (existingPodSpec.isPresent()) {
+            podSpec = existingPodSpec.get();
+        } else {
+            deployment.getPodSpecs().add(podSpec);
+        }
+
         ListIterator<String> iterator = readInLines.listIterator();
         int indentation = -1;
         while (iterator.hasNext()) {
@@ -36,7 +44,7 @@ public class PodSpecParser extends BaseParser {
                                 lines.add(new Line(lineNumber, 1D, true));
                             } else {
                                 String[] lineSplit = currentLine.split(":");
-                                StringStringMap label = new StringStringMap(lineSplit[0].trim(), lineSplit[1].trim());
+                                StringStringMap label = new StringStringMap(getCleanedValue(lineSplit[0]), getCleanedValue(lineSplit[1]));
                                 Set<StringStringMap> labels = podSpec.getLabels();
                                 labels.add(label);
                                 podSpec.setLabels(labels);
@@ -65,13 +73,13 @@ public class PodSpecParser extends BaseParser {
                             while (countLeadingWhitespaces(currentLine) > containerLeadingSpaces || currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                 if (currentLine.trim().startsWith("name:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setName(currentLine.split(":")[1].trim());
+                                    container.setName(getCleanedValue(currentLine.split(":")[1]));
                                 } else if (currentLine.trim().startsWith("image:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setImage(currentLine.split("image:")[1].trim());
+                                    container.setImage(getCleanedValue(currentLine.split("image:")[1]));
                                 } else if (currentLine.trim().startsWith("imagePullPolicy:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setImagePullPolicy(currentLine.split(":")[1].trim());
+                                    container.setImagePullPolicy(getCleanedValue(currentLine.split(":")[1]));
                                 } else if (currentLine.trim().startsWith("ports:")) {
                                     int portsLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                                     lines.add(new Line(lineNumber, 1D, true));
@@ -87,10 +95,10 @@ public class PodSpecParser extends BaseParser {
                                             String[] lineSplitPort = currentLine.split(":");
                                             if (currentLine.trim().startsWith("name:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                containerPort.setName(lineSplitPort[1].trim());
+                                                containerPort.setName(getCleanedValue(lineSplitPort[1]));
                                             } else if (currentLine.trim().startsWith("containerPort:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                containerPort.setPort(Integer.parseInt(lineSplitPort[1].trim()));
+                                                containerPort.setPort(Integer.parseInt(getCleanedValue(lineSplitPort[1])));
                                             } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                             } else {
@@ -125,10 +133,10 @@ public class PodSpecParser extends BaseParser {
                                             lineNumber++;
                                             if (currentLine.trim().startsWith("name:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                environmentVariable.setKey(currentLine.split("name:")[1].trim());
+                                                environmentVariable.setKey(getCleanedValue(currentLine.split("name:")[1]));
                                             } else if (currentLine.trim().startsWith("value:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                environmentVariable.setValue(currentLine.split("value:")[1].trim());
+                                                environmentVariable.setValue(getCleanedValue(currentLine.split("value:")[1]));
                                             } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                             } else {
@@ -149,7 +157,7 @@ public class PodSpecParser extends BaseParser {
                                     container.setEnvironmentVariables(environmentVariables);
                                 } else if (currentLine.trim().startsWith("workingDir")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    container.setWorkingDir(currentLine.split("workingDir:")[1].trim());
+                                    container.setWorkingDir(getCleanedValue(currentLine.split("workingDir:")[1]));
                                 } else if (currentLine.trim().startsWith("args:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     while (iterator.hasNext() && ((currentLine = iterator.next()).trim().startsWith("-") || currentLine.equals("") || currentLine.trim().startsWith("#"))) {
@@ -183,30 +191,30 @@ public class PodSpecParser extends BaseParser {
                                             lineNumber++;
                                             if (currentLine.trim().startsWith("mountPath:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                volumeMount.setMountPath(currentLine.trim().split(":")[1].trim());
+                                                volumeMount.setMountPath(getCleanedValue(currentLine.trim().split(":")[1]));
                                             } else if (currentLine.trim().startsWith("name:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                volumeMount.setName(currentLine.trim().split(":")[1].trim());
+                                                volumeMount.setName(getCleanedValue(currentLine.trim().split(":")[1]));
                                             } else if (currentLine.trim().startsWith("readOnly:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
-                                                volumeMount.setReadOnly(Boolean.parseBoolean((currentLine.trim().split(":")[1].trim())));
+                                                volumeMount.setReadOnly(Boolean.parseBoolean(getCleanedValue(currentLine.trim().split(":")[1])));
                                             } else if (currentLine.trim().startsWith("subPath:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                                 String[] currentLineSplit = currentLine.trim().split(":");
                                                 if (currentLineSplit.length > 1) {
-                                                    volumeMount.setSubPath(currentLineSplit[1]);
+                                                    volumeMount.setSubPath(getCleanedValue(currentLineSplit[1]));
                                                 }
                                             } else if (currentLine.trim().startsWith("subPathExpr:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                                 String[] currentLineSplit = currentLine.trim().split(":");
                                                 if (currentLineSplit.length > 1) {
-                                                    volumeMount.setSubPathExpr(currentLineSplit[1]);
+                                                    volumeMount.setSubPathExpr(getCleanedValue(currentLineSplit[1]));
                                                 }
                                             } else if (currentLine.trim().startsWith("mountPropagation:")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
                                                 String[] currentLineSplit = currentLine.trim().split(":");
                                                 if (currentLineSplit.length > 1) {
-                                                    volumeMount.setMountPropagation(currentLineSplit[1]);
+                                                    volumeMount.setMountPropagation(getCleanedValue(currentLineSplit[1]));
                                                 }
                                             } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                                 lines.add(new Line(lineNumber, 1D, true));
@@ -247,7 +255,7 @@ public class PodSpecParser extends BaseParser {
                         }
                     } else if (currentLine.trim().startsWith("restartPolicy")) {
                         lines.add(new Line(lineNumber, 1D, true));
-                        podSpec.setRestartPolicy(currentLine.split(":")[1].trim());
+                        podSpec.setRestartPolicy(getCleanedValue(currentLine.split(":")[1]));
                     } else if (currentLine.trim().startsWith("volumes")) {
                         int volumesLeadingWhitespaces = countLeadingWhitespaces(currentLine);
                         lines.add(new Line(lineNumber, 1D, true));
@@ -263,7 +271,7 @@ public class PodSpecParser extends BaseParser {
                                 lineNumber++;
                                 if (currentLine.trim().startsWith("name:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
-                                    volume.setName(currentLine.trim().split(":")[1].trim());
+                                    volume.setName(getCleanedValue(currentLine.trim().split(":")[1]));
                                 } else if (currentLine.trim().startsWith("persistentVolumeClaim:")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                     while (iterator.hasNext() &&
@@ -273,12 +281,12 @@ public class PodSpecParser extends BaseParser {
                                         }
                                         lineNumber++;
                                         if (currentLine.trim().startsWith("claimName:")) {
-                                            volume.setPersistentVolumeClaimName(currentLine.trim().split(":")[1].trim());
+                                            volume.setPersistentVolumeClaimName(getCleanedValue(currentLine.trim().split(":")[1]));
                                             lines.add(new Line(lineNumber, 1D, true));
                                         } else if (currentLine.trim().startsWith("readOnly:")) {
                                             lines.add(new Line(lineNumber, 1D, true));
-                                            volume.setPersistentVolumeClaimReadOnly(Boolean.parseBoolean(currentLine.trim().split(
-                                                    ":")[1].trim()));
+                                            volume.setPersistentVolumeClaimReadOnly(Boolean.parseBoolean(
+                                                    getCleanedValue(currentLine.trim().split(":")[1])));
                                         } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                             lines.add(new Line(lineNumber, 1D, true));
                                         } else {
@@ -319,9 +327,6 @@ public class PodSpecParser extends BaseParser {
             }
             lineNumber++;
         }
-        Set<KubernetesPodSpec> podSpecs = deployment.getPodSpecs();
-        podSpecs.add(podSpec);
-        deployment.setPodSpecs(podSpecs);
         return lines;
     }
 }

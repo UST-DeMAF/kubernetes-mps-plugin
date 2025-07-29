@@ -6,12 +6,15 @@ import org.springframework.util.StringUtils;
 import ust.tad.kubernetesmpsplugin.analysis.kubernetesparser.*;
 import ust.tad.kubernetesmpsplugin.analysistask.AnalysisTaskResponseSender;
 import ust.tad.kubernetesmpsplugin.analysistask.Location;
+import ust.tad.kubernetesmpsplugin.analysistask.TADMEntities;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.KubernetesDeploymentModel;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.ConfigMap;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.configStorageResources.PersistentVolumeClaim;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.ingress.KubernetesIngress;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.service.KubernetesService;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.deployment.KubernetesDeployment;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.Container;
+import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.EnvironmentVariable;
 import ust.tad.kubernetesmpsplugin.kubernetesmodel.workload.pods.KubernetesPodSpec;
 import ust.tad.kubernetesmpsplugin.models.ModelsService;
 import ust.tad.kubernetesmpsplugin.models.tadm.InvalidPropertyValueException;
@@ -25,6 +28,7 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AnalysisService {
@@ -41,6 +45,7 @@ public class AnalysisService {
 
   private TechnologySpecificDeploymentModel tsdm;
   private TechnologyAgnosticDeploymentModel tadm;
+  private KubernetesDeploymentModel existingKubeModel;
 
   private final Set<KubernetesDeployment> deployments = new HashSet<>();
   private final Set<KubernetesService> services = new HashSet<>();
@@ -60,29 +65,36 @@ public class AnalysisService {
    * @param transformationProcessId
    * @param commands
    * @param locations
+   * @param tadmEntities
    */
   public void startAnalysis(
           UUID taskId,
           UUID transformationProcessId,
           List<String> commands,
           List<String> options,
-          List<Location> locations) {
-    this.newEmbeddedDeploymentModelIndexes.clear();
-    this.deployments.clear();
-    this.services.clear();
-
+          List<Location> locations, List<TADMEntities> tadmEntities) {
+    clearVariables();
     TechnologySpecificDeploymentModel completeTsdm =
             modelsService.getTechnologySpecificDeploymentModel(transformationProcessId);
-    this.tsdm = getExistingTsdm(completeTsdm, locations);
+    if (locations.isEmpty()) {
+      this.tsdm = completeTsdm;
+    } else {
+      this.tsdm = getExistingTsdm(completeTsdm, locations);
+    }
     if (tsdm == null) {
       analysisTaskResponseSender.sendFailureResponse(
               taskId, "No technology-specific deployment model found!");
       return;
     }
     this.tadm = modelsService.getTechnologyAgnosticDeploymentModel(transformationProcessId);
+    this.existingKubeModel = modelsService.getKubernetesDeploymentModel(transformationProcessId);
 
     try {
-      runAnalysis(taskId, locations);
+      if (!options.isEmpty() && options.stream().anyMatch(s -> s.startsWith("extractedKubernetesModel"))) {
+        runAnalysisEmbeddedModel(taskId, options);
+      } else {
+        runAnalysis(taskId, locations);
+      }
     } catch (URISyntaxException
              | IOException
              | InvalidNumberOfLinesException
@@ -94,7 +106,7 @@ public class AnalysisService {
       return;
     }
 
-    updateDeploymentModels(this.tsdm, this.tadm);
+    updateDeploymentModels(this.tsdm, this.tadm, this.existingKubeModel);
 
     if (newEmbeddedDeploymentModelIndexes.isEmpty()) {
       analysisTaskResponseSender.sendSuccessResponse(taskId);
@@ -104,6 +116,20 @@ public class AnalysisService {
                 this.tsdm.getEmbeddedDeploymentModels().get(index), taskId);
       }
       analysisTaskResponseSender.sendSuccessResponse(taskId);
+    }
+  }
+
+  private void runAnalysisEmbeddedModel(UUID taskId, List<String> options) throws IOException {
+    Optional<String> option = options.stream().filter(s -> s.startsWith("extractedKubernetesModel")).findFirst();
+    if (option.isPresent()) {
+      String modelId = option.get().split("=")[1];
+      KubernetesDeploymentModel kubeModel = modelsService.getKubernetesDeploymentModelById(UUID.fromString(modelId));
+      if (existingKubeModel.equals(kubeModel)) {
+        this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, new KubernetesDeploymentModel());
+      } else {
+        this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, existingKubeModel);
+        existingKubeModel.addFromOtherModel(kubeModel);
+      }
     }
   }
 
@@ -127,10 +153,12 @@ public class AnalysisService {
     return null;
   }
 
-  private void updateDeploymentModels(
-          TechnologySpecificDeploymentModel tsdm, TechnologyAgnosticDeploymentModel tadm) {
+  private void updateDeploymentModels(TechnologySpecificDeploymentModel tsdm,
+                                      TechnologyAgnosticDeploymentModel tadm,
+                                      KubernetesDeploymentModel kubeModel) {
     modelsService.updateTechnologySpecificDeploymentModel(tsdm);
     modelsService.updateTechnologyAgnosticDeploymentModel(tadm);
+    modelsService.updateKubernetesDeploymentModel(kubeModel);
   }
 
   /**
@@ -181,9 +209,12 @@ public class AnalysisService {
         }
       }
     }
-    this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm,
-            new KubernetesDeploymentModel(this.deployments, this.services, this.pods,
-                    this.ingresses, this.persistentVolumeClaims, this.configMaps));
+    resolveVariableReferencesInEnvVariables();
+    KubernetesDeploymentModel kubeModel = new KubernetesDeploymentModel(
+            existingKubeModel.getTransformationProcessId(), this.deployments, this.services, this.pods,
+            this.ingresses, this.persistentVolumeClaims, this.configMaps);
+    this.tadm = transformationService.transformInternalToTADM(taskId, this.tadm, kubeModel, existingKubeModel);
+    existingKubeModel.addFromOtherModel(kubeModel);
   }
 
   public void parseFile(URL url) throws IOException, InvalidNumberOfLinesException, InvalidAnnotationException {
@@ -249,5 +280,45 @@ public class AnalysisService {
       lines.add(new Line(i, 0D, true));
     }
     return lines;
+  }
+
+  /**
+   * Replace Variable References in the environment variables of a PodSpec with the actual value.
+   */
+  private void resolveVariableReferencesInEnvVariables() {
+    Set<Container> containers = this.deployments.stream()
+            .flatMap(deployment -> deployment.getPodSpecs().stream())
+            .flatMap(kubernetesPodSpec -> kubernetesPodSpec.getContainers().stream())
+            .collect(Collectors.toSet());
+    for (Container container: containers) {
+      Set<EnvironmentVariable> envVars = container.getEnvironmentVariables();
+      for (EnvironmentVariable envVar: envVars) {
+        if (envVar.getValue().contains("$(")) {
+          String enVarValue = envVar.getValue();
+          String variableReference = enVarValue.substring(enVarValue.indexOf("$(")+2, enVarValue.indexOf(")"));
+          for (EnvironmentVariable enVarToSearch: envVars){
+            if (enVarToSearch.getKey().equals(variableReference)) {
+              String newEnvVarValue = enVarValue.replace("$(" + variableReference + ")",
+                      enVarToSearch.getValue().replaceAll("^\"|\"$", ""));
+              envVar.setValue(newEnvVarValue);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Clears the variables and resources set to avoid side effects between different transformation
+   * processes.
+   */
+  private void clearVariables() {
+    newEmbeddedDeploymentModelIndexes.clear();
+    deployments.clear();
+    services.clear();
+    pods.clear();
+    ingresses.clear();
+    persistentVolumeClaims.clear();
+    configMaps.clear();
   }
 }
