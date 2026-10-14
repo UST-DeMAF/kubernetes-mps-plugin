@@ -1,11 +1,12 @@
 package ust.tad.kubernetesmpsplugin.kubernetesmodel.ingress;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class IngressRule {
     private String host;
-    private List<HTTPIngressRuleValue> ingressRuleValues;
+    private List<HTTPIngressRuleValue> ingressRuleValues = new ArrayList<>();
 
     public IngressRule() {}
 
