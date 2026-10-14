@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - 'main'
-      
+      - 'dev'
 
 env:
   IMAGE_URL: ghcr.io/ust-demaf
@@ -33,7 +33,9 @@ jobs:
         with:
           platforms: linux/amd64
 
+      # Pull requests only build the images to check the build, the images are pushed for pushes to main and dev
       - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -47,7 +49,7 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           provenance: false
 
@@ -58,13 +60,14 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}-slim
           build-args: | # Set the SLIM env variable to 1 for the build
             SLIM=1
           provenance: false
 
   delete-untagged-images:
+    if: github.event_name == 'push'
     needs:
       - build-using-dockerfile-push-2-ghcr
     runs-on: ubuntu-latest
