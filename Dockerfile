@@ -31,7 +31,7 @@ RUN if [ "$SLIM" != "1" ]; then \
 RUN rm -rf /app/mps-transformation-kubernetes/build/download
 
 # Stage 2: Create a minimal runtime image using OpenJDK 11 JRE
-FROM openjdk:11-jre-slim
+FROM openjdk:11.0.16-jre-slim
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y curl \
