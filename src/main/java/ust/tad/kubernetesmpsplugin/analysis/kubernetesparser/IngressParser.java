@@ -17,6 +17,8 @@ public class IngressParser extends BaseParser {
      * Parse a Kubernetes Ingress object.
      * Nested blocks and list items are identified by their indentation relative to their parent key.
      * Thus, list items may be indented at the same level as their parent key or further.
+     * Each line is annotated exactly once. Lines with a recognized key, blank lines, and comments are annotated
+     * with a comprehensibility of 1, all other lines keep the default comprehensibility of 0.
      *
      * @param lineNumber the line number of the first line of the Ingress object.
      * @param readInLines the lines of the Ingress object, starting with the "kind" line.
