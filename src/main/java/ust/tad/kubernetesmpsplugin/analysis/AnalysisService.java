@@ -100,7 +100,8 @@ public class AnalysisService {
              | InvalidNumberOfLinesException
              | InvalidAnnotationException
              | InvalidNumberOfContentException
-             | InvalidPropertyValueException e) {
+             | InvalidPropertyValueException
+             | RuntimeException e) {
       e.printStackTrace();
       analysisTaskResponseSender.sendFailureResponse(taskId, e.getClass() + ": " + e.getMessage());
       return;

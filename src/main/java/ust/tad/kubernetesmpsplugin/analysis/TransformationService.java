@@ -40,17 +40,21 @@ public class TransformationService {
 
   /**
    * Transforms given deployments and services of the internal Kubernetes model to an EDMM model.
-   * Uses the MPS project for a model-to-model transformation. In the first step, creates a file
-   * containing the tsdm model in the MPS Kubernetes language from the given internal Kubernetes
-   * model. Then, the MPS transformation is run, using the Gradle build scripts. After that, the
-   * resulting EDMM model is imported and added to the already existing technology-agnostic
-   * deployment model. Lastly, the RelationFinderService is used to find EDMM relations.
+   * Uses the MPS project for a model-to-model transformation. In the first step, creates the input
+   * files of the MPS transformation: the Kubernetes model to transform and the Kubernetes model of
+   * previous transformation processes in the MPS Kubernetes language, as well as the existing
+   * technology-agnostic deployment model. Then, the MPS transformation is run, using the Gradle
+   * build scripts. The MPS transformation finds the EDMM relations and merges the transformation
+   * result into the existing technology-agnostic deployment model. After that, the resulting EDMM
+   * model is imported. Lastly, the analysis of the Docker images of new components is requested.
    *
    * @param taskId the ID of the current analysis task.
    * @param tadm the technology-agnostic deployment model that the transformation result shall be
-   *     added to
+   *     merged into
    * @param kubernetesDeploymentModel the Kubernetes deployment model to transform
-   * @return the modified technology-agnostic deployment model.
+   * @param existingKubernetesDeploymentModel the Kubernetes deployment model of previous
+   *     transformation processes, used to find relations to previously transformed components
+   * @return the technology-agnostic deployment model containing the transformation result.
    * @throws IOException if the MPS transformation cannot be executed or the deserialization of the
    *     transformation result fails.
    */
