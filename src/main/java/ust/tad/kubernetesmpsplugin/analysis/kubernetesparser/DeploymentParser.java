@@ -108,7 +108,8 @@ public class DeploymentParser extends BaseParser{
                         lines.addAll(PodSpecParser.parsePod(lineNumber, readInLines.subList(
                                         lineNumber-initialLineNumber, readInLines.size()),
                                 kubernetesDeployment));
-                    } else if (currentLine.trim().startsWith("volumeClaimTemplates:")) {
+                    } else if (currentLine.trim().startsWith("volumeClaimTemplates:")
+                            && !currentLine.trim().endsWith("null")) {
                         lines.add(new Line(lineNumber, 1D, true));
                         // create pvc with vct-name - deployment name
                         lines.addAll(PersistentVolumeClaimParser.parsePersistentVolumeClaim(
