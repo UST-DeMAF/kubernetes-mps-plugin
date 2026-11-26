@@ -292,8 +292,9 @@ public class PodSpecParser extends BaseParser {
                                         } else {
                                             lines.add(new Line(lineNumber, 0D, true));
                                         }
-                                        if (iterator.hasNext()) iterator.previous();
                                     }
+                                    // step back so that the line that ended the block is read again
+                                    if (iterator.hasNext()) iterator.previous();
                                 } else if (currentLine.equals("") || currentLine.trim().startsWith("#")) {
                                     lines.add(new Line(lineNumber, 1D, true));
                                 } else {
